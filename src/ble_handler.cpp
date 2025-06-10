@@ -5,6 +5,8 @@
 #include <Arduino.h> // For Serial
 #include <BLEDevice.h>
 #include <BLE2902.h> // For BLE2902 descriptor
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 // Define global BLE variables here
 BLECharacteristic *g_photo_data_characteristic = nullptr;
@@ -15,6 +17,10 @@ BLECharacteristic *g_opus_audio_characteristic = nullptr;
 
 bool g_is_ble_connected = false;
 bool g_opus_streaming_enabled = false;
+
+static TaskHandle_t opus_streaming_task_handle = nullptr;
+static TaskHandle_t pcm_streaming_task_handle = nullptr;
+static TaskHandle_t photo_streaming_task_handle = nullptr;
 
 // --- ServerHandler Class Implementation ---
 void ServerHandler::onConnect(BLEServer *server)
@@ -52,6 +58,7 @@ void configure_ble()
 {
     Serial.println("[BLE] Initializing...");
     BLEDevice::init("OpenGlass"); // Device name
+    BLEDevice::setMTU(247); // Increase MTU for higher throughput
     BLEServer *server = BLEDevice::createServer();
     server->setCallbacks(new ServerHandler());
 
@@ -122,20 +129,89 @@ void configure_ble()
     advertising->addServiceUUID(DEVICE_INFORMATION_SERVICE_UUID);
     advertising->addServiceUUID(BATTERY_SERVICE_UUID);
     advertising->setScanResponse(true);
-    // Min/Max interval for connection parameters (can be adjusted)
-    // advertising->setMinPreferred(0x06); // e.g. 12.5ms
-    // advertising->setMaxPreferred(0x12); // e.g. 25ms
+    advertising->setMinPreferred(0x06); // 7.5ms
+    advertising->setMaxPreferred(0x12); // 25ms
     BLEDevice::startAdvertising();
 
     Serial.println("[BLE] Initialized and advertising started.");
 }
 
-// Add this function to be called from your main loop:
-void handle_opus_streaming() {
-    if (is_opus_notify_enabled()) {
-        g_opus_streaming_enabled = true;
-        process_and_send_opus_audio();
-    } else {
-        g_opus_streaming_enabled = false;
+void opus_streaming_task(void *pvParameters) {
+    while (true) {
+        if (g_is_ble_connected && is_opus_notify_enabled()) {
+            g_opus_streaming_enabled = true;
+            process_and_send_opus_audio();
+        } else {
+            g_opus_streaming_enabled = false;
+            vTaskDelay(pdMS_TO_TICKS(50)); // Sleep longer when idle
+        }
+        // Short delay to yield, adjust as needed for your audio frame rate
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
+}
+
+void start_opus_streaming_task() {
+    if (opus_streaming_task_handle == nullptr) {
+        xTaskCreatePinnedToCore(
+            opus_streaming_task, "OpusStreamTask", 4096, NULL, 1, &opus_streaming_task_handle, 1);
+    }
+}
+
+void pcm_streaming_task(void *pvParameters) {
+    while (true) {
+        if (g_is_ble_connected && g_audio_data_characteristic) {
+            // Only send PCM if notifications are enabled
+            BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+            if (desc && desc->getNotifications()) {
+                process_and_send_audio(g_audio_data_characteristic);
+            } else {
+                vTaskDelay(pdMS_TO_TICKS(50));
+            }
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
+
+void start_pcm_streaming_task() {
+    if (pcm_streaming_task_handle == nullptr) {
+        xTaskCreatePinnedToCore(
+            pcm_streaming_task, "PCMStreamTask", 4096, NULL, 1, &pcm_streaming_task_handle, 1);
+    }
+}
+
+void photo_streaming_task(void *pvParameters) {
+    while (true) {
+        if (g_is_ble_connected && g_photo_data_characteristic) {
+            BLE2902* desc = (BLE2902*)g_photo_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+            if (desc && desc->getNotifications()) {
+                process_photo_capture_and_upload(millis());
+            } else {
+                vTaskDelay(pdMS_TO_TICKS(100));
+            }
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+void start_photo_streaming_task() {
+    if (photo_streaming_task_handle == nullptr) {
+        xTaskCreatePinnedToCore(
+            photo_streaming_task, "PhotoStreamTask", 4096, NULL, 1, &photo_streaming_task_handle, 1);
+    }
+}
+
+void initialize_ble_and_tasks() {
+    configure_ble();
+    start_opus_streaming_task();
+    start_pcm_streaming_task();
+    start_photo_streaming_task();
+}
+
+// Legacy stub for compatibility with old main loop code
+void handle_opus_streaming() {
+    // No-op: Opus streaming is now handled by FreeRTOS task
 }
