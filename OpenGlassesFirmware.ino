@@ -10,7 +10,7 @@
 #include "src/photo_manager.h"  // For photo capture logic and uploading
 #include "src/battery_handler.h"// For battery level monitoring
 
-#include "ble_handler.h"
+void handle_opus_streaming();
 
 /**
  * @brief Arduino setup function. Initializes hardware and software components.

@@ -6,7 +6,7 @@
 
 extern uint8_t *s_i2s_recording_buffer;
 extern BLECharacteristic* g_opus_audio_characteristic;
-extern OpusEncoder* opus_encoder;
+OpusEncoder* opus_encoder = nullptr;
 
 static uint8_t opus_encoded_buffer[256]; // Adjust size as needed
 
@@ -19,7 +19,7 @@ void process_and_send_opus_audio() {
         int opus_bytes = opus_encode(
             opus_encoder,
             (const opus_int16*)s_i2s_recording_buffer,
-            PCM_FRAME_SIZE, // Number of samples per channel
+            FRAME_SIZE, // Number of samples per channel
             opus_encoded_buffer,
             sizeof(opus_encoded_buffer)
         );

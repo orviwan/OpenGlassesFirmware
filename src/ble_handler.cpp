@@ -3,6 +3,8 @@
 #include "photo_manager.h" // For handle_photo_control
 #include "audio_handler.h"
 #include <Arduino.h> // For Serial
+#include <BLEDevice.h>
+#include <BLE2902.h> // For BLE2902 descriptor
 
 // Define global BLE variables here
 BLECharacteristic *g_photo_data_characteristic = nullptr;
@@ -39,17 +41,12 @@ void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
     }
 }
 
-// In your BLECharacteristicCallbacks for the Opus characteristic:
-class OpusAudioNotifyCallback : public BLECharacteristicCallbacks {
-    void onSubscribe(BLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc) override {
-        Serial.println("[BLE] Opus audio notifications enabled");
-        g_opus_streaming_enabled = true;
-    }
-    void onUnsubscribe(BLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc) override {
-        Serial.println("[BLE] Opus audio notifications disabled");
-        g_opus_streaming_enabled = false;
-    }
-};
+// Helper to check if Opus notifications are enabled
+bool is_opus_notify_enabled() {
+    if (!g_opus_audio_characteristic) return false;
+    BLE2902* desc = (BLE2902*)g_opus_audio_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    return desc && desc->getNotifications();
+}
 
 void configure_ble()
 {
@@ -93,7 +90,7 @@ void configure_ble()
         AUDIO_CODEC_OPUS_UUID,
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    g_opus_audio_characteristic->setCallbacks(new OpusAudioNotifyCallback());
+    g_opus_audio_characteristic->addDescriptor(new BLE2902());
 
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
@@ -135,7 +132,10 @@ void configure_ble()
 
 // Add this function to be called from your main loop:
 void handle_opus_streaming() {
-    if (g_opus_streaming_enabled) {
+    if (is_opus_notify_enabled()) {
+        g_opus_streaming_enabled = true;
         process_and_send_opus_audio();
+    } else {
+        g_opus_streaming_enabled = false;
     }
 }
