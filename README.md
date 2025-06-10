@@ -6,14 +6,17 @@ This repository contains the firmware for the OpenGlass project, an ESP32-S3 bas
 
 ## Key Features
 
-*   **Audio Streaming:** Captures audio from the onboard PDM microphone and streams it as PCM 16kHz, 16-bit mono data over BLE.
+*   **Audio Streaming:**
+    *   **PCM:** Captures audio from the onboard PDM microphone and streams it as PCM 16kHz, 16-bit mono data over BLE.
+    *   **Opus:** Streams Opus-encoded audio (16-bit, 16kHz mono) over a dedicated BLE characteristic for efficient, compressed audio (requires client support).
 *   **Photo Capture & Transfer:** Captures SVGA (800x600) resolution JPEG images and transfers them in chunks over BLE.
     *   Supports single-shot photo requests.
     *   Supports client-defined interval photo capture.
     *   Defaults to a 30-second interval capture if no client command is given.
 *   **Bluetooth Low Energy (BLE) Services:**
     *   **Custom "Friend" Service:**
-        *   Audio Data Characteristic (for streaming audio)
+        *   Audio Data Characteristic (for streaming PCM audio)
+        *   **Opus Audio Characteristic (for streaming Opus-encoded audio)**
         *   Audio Codec Characteristic (reports PCM 16kHz, 16-bit)
         *   Photo Data Characteristic (for streaming photo chunks)
         *   Photo Control Characteristic (to command photo capture)
@@ -38,7 +41,9 @@ firmware/
 └── src/                   // Source code modules
     ├── config.h           // Global constants and configuration
     ├── ble_handler.h/cpp  // BLE logic
-    ├── audio_handler.h/cpp// Audio capture and processing
+    ├── audio_handler.h/cpp// Audio handler (shared buffer, mic config, dispatch)
+    ├── audio_pcm.h/cpp    // PCM audio capture and BLE streaming
+    ├── audio_opus.h/cpp   // Opus encoding and BLE streaming
     ├── camera_handler.h/cpp// Camera interface
     ├── photo_manager.h/cpp// Photo capture and upload logic
     └── battery_handler.h/cpp// Battery level reporting
@@ -62,7 +67,8 @@ A client application (e.g., mobile app) can interact with the OpenGlass device a
 1.  **Scan & Connect:** Scan for a BLE device named "OpenGlass" and establish a connection.
 2.  **Discover Services & Characteristics:** Refer to `blueprint.md` for detailed UUIDs.
 3.  **Subscribe to Notifications:**
-    *   **Audio Data Characteristic:** To receive streaming audio packets.
+    *   **Audio Data Characteristic:** To receive streaming PCM audio packets.
+    *   **Opus Audio Characteristic:** To receive Opus-encoded audio packets (client must decode Opus).
     *   **Photo Data Characteristic:** To receive photo image chunks.
     *   **Battery Level Characteristic:** To receive battery level updates.
 4.  **Read Audio Codec:** Read the Audio Codec characteristic to confirm audio format (PCM 16kHz, 16-bit).
@@ -70,7 +76,10 @@ A client application (e.g., mobile app) can interact with the OpenGlass device a
     *   `-1` (0xFF): Request a single photo.
     *   `0` (0x00): Stop photo capture.
     *   `1-127`: Start interval capture (value is interval in seconds).
-6.  **Reassemble Photos:** The client must reassemble received photo chunks (using the 2-byte sequence number header) until an end-of-photo marker (`0xFFFF` sequence number) is received.
+6.  **Opus Audio Streaming:**
+    *   Subscribe to the Opus Audio Characteristic to receive a continuous stream of Opus-encoded audio packets.
+    *   Unsubscribe (disable notifications) to stop the stream.
+7.  **Reassemble Photos:** The client must reassemble received photo chunks (using the 2-byte sequence number header) until an end-of-photo marker (`0xFFFF` sequence number) is received.
 
 For a detailed guide on services, characteristics, and data formats, please see `blueprint.md`.
 

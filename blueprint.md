@@ -5,6 +5,7 @@ This document outlines the architecture, functionality, and interaction model fo
 ## Core Functionality
 
 1.  **Audio Streaming:** Captures audio from the onboard PDM microphone, processes it (PCM 16kHz, 16-bit mono, with gain), and streams it over BLE.
+1.  **Audio Streaming:** Captures audio from the onboard PDM microphone, processes it (PCM 8kHz, 16-bit mono, with gain), and streams it over BLE.
 2.  **Photo Capture & Transfer:** Captures JPEG images (SVGA resolution) from the camera, and transfers them in chunks over BLE. Photo capture can be initiated by the client (single shot or interval) or can run on a default interval.
 3.  **BLE Services:**
     *   **Custom "Friend" Service:** For audio data, photo data, photo control, and audio codec information.
@@ -23,7 +24,9 @@ firmware/
 └── src/
     ├── config.h           // Global constants and configuration
     ├── ble_handler.h/cpp  // BLE services, characteristics, advertising, connection handling
-    ├── audio_handler.h/cpp// Microphone setup, audio capture, PCM processing
+    ├── audio_handler.h/cpp// Microphone setup, shared buffer, audio dispatch
+    ├── audio_pcm.h/cpp    // PCM audio capture, PCM BLE streaming
+    ├── audio_opus.h/cpp   // Opus encoding, Opus BLE streaming
     ├── camera_handler.h/cpp// Camera setup, image capture (JPEG)
     ├── photo_manager.h/cpp// Photo capture control logic, interval timing, image chunking & upload
     └── battery_handler.h/cpp// Battery level monitoring and reporting
@@ -52,9 +55,9 @@ firmware/
 ### 2. `src/config.h` (Configuration)
 *   Defines `CAMERA_MODEL_XIAO_ESP32S3`.
 *   Contains constants for:
-    *   PCM Audio (frame size, sample rate, bits, gain, header length).
+    *   PCM Audio (frame size for output packet, I2S sample rate set to 8kHz, bits, gain, header length).
     *   BLE UUIDs for all services and characteristics.
-    *   Audio Codec ID (`AUDIO_CODEC_ID_PCM_16KHZ_16BIT`).
+    *   Audio Codec ID (e.g., `AUDIO_CODEC_ID_PCM_8KHZ_16BIT`).
     *   Photo Chunking (max payload, header length, buffer size).
     *   Timings (battery update interval, main loop delay).
 
@@ -64,42 +67,32 @@ firmware/
 
 ### 4. `src/ble_handler.h/.cpp` (Bluetooth Low Energy)
 *   **Global Variables:**
-    *   `g_photo_data_characteristic`, `g_photo_control_characteristic`, `g_audio_data_characteristic`, `g_battery_level_characteristic`: Pointers to the BLE characteristic objects.
-    *   `g_is_ble_connected`: Boolean flag indicating connection status.
-*   **`ServerHandler` Class:** Implements `BLEServerCallbacks` (`onConnect`, `onDisconnect`) to manage `g_is_ble_connected` and restart advertising on disconnect.
-*   **`PhotoControlCallback` Class:** Implements `BLECharacteristicCallbacks` (`onWrite`) for the photo control characteristic. When written to, it calls `handle_photo_control()` from `photo_manager.cpp`.
+    *   `g_photo_data_characteristic`, `g_photo_control_characteristic`, `g_audio_data_characteristic`, `g_opus_audio_characteristic`, `g_battery_level_characteristic`: Pointers to the BLE characteristic objects.
+    *   `g_is_ble_connected`, `g_opus_streaming_enabled`: Boolean flags for BLE connection and Opus streaming state.
+*   **`OpusAudioNotifyCallback` Class:** Handles subscribe/unsubscribe for Opus notifications, sets `g_opus_streaming_enabled`.
 *   **`configure_ble()`:**
     *   Initializes `BLEDevice` with the name "OpenGlass".
     *   Creates the BLE server and sets callbacks.
     *   **Main Custom Service (`SERVICE_UUID`):**
         *   Audio Data Characteristic (`AUDIO_DATA_UUID`): Read, Notify. For streaming audio packets.
         *   Audio Codec Characteristic (`AUDIO_CODEC_UUID`): Read. Value set to `AUDIO_CODEC_ID_PCM_16KHZ_16BIT`.
+        *   Audio Codec Characteristic (`AUDIO_CODEC_UUID`): Read. Value set to reflect 8kHz PCM (e.g., `AUDIO_CODEC_ID_PCM_8KHZ_16BIT`).
         *   Photo Data Characteristic (`PHOTO_DATA_UUID`): Read, Notify. For sending photo chunks.
         *   Photo Control Characteristic (`PHOTO_CONTROL_UUID`): Write. For client commands to control photo capture.
+        *   Opus Audio Characteristic (`AUDIO_CODEC_OPUS_UUID`): Read, Notify. For streaming Opus audio packets.
     *   **Device Information Service (Standard):** Provides manufacturer, model, firmware ("1.0.2"), hardware.
     *   **Battery Service (Standard):** Provides battery level via `g_battery_level_characteristic`.
     *   Adds `BLE2902` descriptors to notifiable characteristics to allow clients to subscribe.
     *   Starts all services and BLE advertising.
 
-### 5. `src/audio_handler.h/.cpp` (Audio Processing)
-*   **Global Variables:**
-    *   `g_audio_frame_count`: Tracks the number of audio frames sent.
-    *   `s_i2s_recording_buffer`, `s_audio_packet_buffer`: Buffers allocated in PSRAM for raw I2S data and processed audio packets, respectively.
-*   **`configure_microphone()`:**
-    *   Sets up I2S pins for the XIAO ESP32S3 Sense microphone.
-    *   Initializes I2S in PDM Mono Mode, `SAMPLE_RATE` (16kHz), `SAMPLE_BITS` (16-bit).
-    *   **Crucially, allocates `s_i2s_recording_buffer` and `s_audio_packet_buffer` using `ps_calloc`. Halts if allocation fails.**
-*   **`read_microphone_data()`:** Reads raw audio data from I2S into the provided buffer.
-*   **`process_and_send_audio()`:**
-    *   Called from the main `loop()`.
-    *   Reads data into `s_i2s_recording_buffer`.
-    *   Processes the raw audio:
-        *   Downsamples by 2 (takes every other 16-bit sample).
-        *   Applies `VOLUME_GAIN`.
-        *   Constructs an audio packet in `s_audio_packet_buffer` with a 3-byte header (frame count, reserved flags) followed by the processed audio data.
-    *   Sends the packet via `g_audio_data_characteristic->setValue()` and `notify()`.
-    *   Increments `g_audio_frame_count`.
-
+### 5. `src/audio_handler.h/.cpp`, `audio_pcm.h/.cpp`, `audio_opus.h/.cpp` (Audio Processing)
+*   **Shared:**
+    *   Microphone setup, buffer allocation, and `read_microphone_data()` in `audio_handler`.
+*   **PCM:**
+    *   `process_and_send_audio()` in `audio_pcm.cpp` captures PCM and streams over BLE.
+*   **Opus:**
+    *   `process_and_send_opus_audio()` in `audio_opus.cpp` encodes PCM to Opus and streams over BLE.
+    *   `handle_opus_streaming()` in `ble_handler.cpp` is called from the main loop to stream Opus audio when enabled.
 ### 6. `src/camera_handler.h/.cpp` (Camera Interface)
 *   **Global Variable:**
     *   `fb`: Pointer to `camera_fb_t` (frame buffer structure), stores the most recently captured image.
@@ -161,11 +154,9 @@ firmware/
 ## Data Flow Examples
 
 ### Audio Streaming
-1.  `loop()` calls `process_and_send_audio()`.
-2.  `read_microphone_data()` fills `s_i2s_recording_buffer`.
-3.  Audio is processed into `s_audio_packet_buffer`.
-4.  `g_audio_data_characteristic` is updated and a notification sent.
-5.  Client (subscribed to notifications) receives the audio packet.
+1.  `loop()` calls `process_and_send_audio()` for PCM and/or `handle_opus_streaming()` for Opus.
+2.  PCM: Captures and streams raw PCM audio packets over BLE.
+3.  Opus: Captures PCM, encodes to Opus, and streams Opus packets over BLE when notifications are enabled.
 
 ### Photo Capture & Transfer (Interval)
 1.  `loop()` calls `process_photo_capture_and_upload()`.
@@ -196,11 +187,13 @@ A client application (e.g., mobile app, desktop app, web app using Web Bluetooth
         *   Audio Codec Characteristic (`AUDIO_CODEC_UUID`)
         *   Photo Data Characteristic (`PHOTO_DATA_UUID`)
         *   Photo Control Characteristic (`PHOTO_CONTROL_UUID`)
+        *   Opus Audio Characteristic (`AUDIO_CODEC_OPUS_UUID`)
     *   Discover the Device Information Service and its characteristics.
     *   Discover the Battery Service and its Battery Level characteristic.
 
 4.  **Read Initial Information (Optional but Recommended):**
     *   Read the Audio Codec Characteristic: Value will be `0x01` (indicating PCM 16kHz 16-bit).
+    *   Read the Audio Codec Characteristic: Value will now indicate 8kHz PCM (e.g., `0x02`).
     *   Read Device Information characteristics (Manufacturer, Model, Firmware, Hardware).
     *   Read the initial Battery Level.
 
@@ -208,12 +201,13 @@ A client application (e.g., mobile app, desktop app, web app using Web Bluetooth
     *   **Crucial for Audio:** Enable notifications on the Audio Data Characteristic. Audio packets will start streaming.
     *   **Crucial for Photos:** Enable notifications on the Photo Data Characteristic. Photo chunks will be sent here.
     *   **Recommended for Battery:** Enable notifications on the Battery Level Characteristic to receive updates.
+    *   **Crucial for Opus:** Enable notifications on the Opus Audio Characteristic to receive continuous Opus audio stream.
 
 6.  **Receive and Process Audio Data:**
     *   When an audio notification is received:
         *   The first 2 bytes are the `audio_frame_count` (little-endian).
         *   The 3rd byte is reserved (currently 0).
-        *   The subsequent bytes are the PCM 16-bit mono audio samples (160 samples, 320 bytes).
+        *   The subsequent bytes are the PCM 16-bit mono audio samples (e.g., 80 samples, 160 bytes for 8kHz 10ms packets).
         *   The client can then play back this audio or process it further.
 
 7.  **Control Photo Capture (via Photo Control Characteristic - `PHOTO_CONTROL_UUID`):**
@@ -231,7 +225,13 @@ A client application (e.g., mobile app, desktop app, web app using Web Bluetooth
         *   The client needs to buffer these chunks in order (using the sequence number) and append them to reconstruct the full JPEG image.
         *   Once the end-of-photo marker is received, the assembled buffer contains the complete JPEG, which can then be displayed or saved.
 
-9.  **Handle Disconnection:**
+9.  **Receive Opus Audio Stream:**
+    *   When an Opus audio notification is received:
+        *   The client receives a continuous stream of Opus-encoded audio packets.
+        *   Unsubscribing from the Opus Audio Characteristic stops the stream.
+        *   The client must decode Opus frames for playback or processing.
+
+10.  **Handle Disconnection:**
     Be prepared for disconnections and implement reconnection logic if needed.
 
 ## Critical Considerations for Client Implementation
@@ -241,3 +241,4 @@ A client application (e.g., mobile app, desktop app, web app using Web Bluetooth
 *   **Error Handling:** Implement robust error handling for BLE operations (connection, discovery, reads, writes, notifications).
 *   **Data Reassembly:** For photos, the client *must* correctly reassemble chunks in order.
 *   **Battery Level:** The current implementation sends a static battery level. A real implementation would require the ESP32 to read an ADC or a fuel gauge IC.
+*   **Opus Streaming:** The client can enable/disable Opus streaming by subscribing/unsubscribing to the Opus Audio Characteristic. Continuous streaming provides real-time audio but requires handling of Opus decoding.

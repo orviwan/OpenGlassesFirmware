@@ -1,6 +1,7 @@
 #include "ble_handler.h"
 #include "config.h" // For UUIDs
 #include "photo_manager.h" // For handle_photo_control
+#include "audio_handler.h"
 #include <Arduino.h> // For Serial
 
 // Define global BLE variables here
@@ -8,8 +9,10 @@ BLECharacteristic *g_photo_data_characteristic = nullptr;
 BLECharacteristic *g_photo_control_characteristic = nullptr;
 BLECharacteristic *g_audio_data_characteristic = nullptr;
 BLECharacteristic *g_battery_level_characteristic = nullptr; // This will be passed to battery_handler
+BLECharacteristic *g_opus_audio_characteristic = nullptr;
 
 bool g_is_ble_connected = false;
+bool g_opus_streaming_enabled = false;
 
 // --- ServerHandler Class Implementation ---
 void ServerHandler::onConnect(BLEServer *server)
@@ -36,6 +39,18 @@ void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
     }
 }
 
+// In your BLECharacteristicCallbacks for the Opus characteristic:
+class OpusAudioNotifyCallback : public BLECharacteristicCallbacks {
+    void onSubscribe(BLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc) override {
+        Serial.println("[BLE] Opus audio notifications enabled");
+        g_opus_streaming_enabled = true;
+    }
+    void onUnsubscribe(BLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc) override {
+        Serial.println("[BLE] Opus audio notifications disabled");
+        g_opus_streaming_enabled = false;
+    }
+};
+
 void configure_ble()
 {
     Serial.println("[BLE] Initializing...");
@@ -56,7 +71,7 @@ void configure_ble()
     BLECharacteristic *audioCodecCharacteristic = service->createCharacteristic(
         AUDIO_CODEC_UUID,
         BLECharacteristic::PROPERTY_READ);
-    uint8_t current_audio_codec_id = AUDIO_CODEC_ID_PCM_16KHZ_16BIT;
+    uint8_t current_audio_codec_id = AUDIO_CODEC_ID_PCM_8KHZ_16BIT; // Use the new 8kHz ID
     audioCodecCharacteristic->setValue(&current_audio_codec_id, 1);
 
     // Photo Data Characteristic
@@ -72,6 +87,13 @@ void configure_ble()
     g_photo_control_characteristic->setCallbacks(new PhotoControlCallback());
     uint8_t initial_control_value = 0; // Default to stop
     g_photo_control_characteristic->setValue(&initial_control_value, 1);
+
+    // Opus Audio Characteristic
+    g_opus_audio_characteristic = service->createCharacteristic(
+        AUDIO_CODEC_OPUS_UUID,
+        BLECharacteristic::PROPERTY_NOTIFY
+    );
+    g_opus_audio_characteristic->setCallbacks(new OpusAudioNotifyCallback());
 
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
@@ -109,4 +131,11 @@ void configure_ble()
     BLEDevice::startAdvertising();
 
     Serial.println("[BLE] Initialized and advertising started.");
+}
+
+// Add this function to be called from your main loop:
+void handle_opus_streaming() {
+    if (g_opus_streaming_enabled) {
+        process_and_send_opus_audio();
+    }
 }

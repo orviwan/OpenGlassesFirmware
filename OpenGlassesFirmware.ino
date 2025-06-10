@@ -10,6 +10,8 @@
 #include "src/photo_manager.h"  // For photo capture logic and uploading
 #include "src/battery_handler.h"// For battery level monitoring
 
+#include "ble_handler.h"
+
 /**
  * @brief Arduino setup function. Initializes hardware and software components.
  */
@@ -55,5 +57,6 @@ void loop()
             update_battery_level();
         }
     }
+    handle_opus_streaming();
     delay(LOOP_DELAY_MS); // Small delay to yield to other tasks
 }

@@ -7,12 +7,12 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 
 // ---------------------------------------------------------------------------------
-// PCM Audio
+// Audio
 // ---------------------------------------------------------------------------------
-constexpr int FRAME_SIZE = 160;     // Number of audio samples per frame
-constexpr int SAMPLE_RATE = 16000;  // Audio sample rate in Hz (16kHz)
+constexpr int FRAME_SIZE = 80;      // Number of audio samples per frame (for 8kHz, 10ms packets)
+constexpr int SAMPLE_RATE = 8000;   // Audio sample rate in Hz (8kHz for I2S)
 constexpr int SAMPLE_BITS = 16;     // Audio sample bit depth (16-bit)
-constexpr int VOLUME_GAIN = 2;      // Audio volume gain factor (applied as bit shift: 1 << 2 = 4x gain)
+constexpr int VOLUME_GAIN = 2;      // Audio volume gain factor (applied as bit shift: e.g., 1 for 2x, 2 for 4x gain)
 constexpr size_t AUDIO_FRAME_HEADER_LEN = 3; // Bytes for audio frame header
 
 // ---------------------------------------------------------------------------------
@@ -35,9 +35,10 @@ static BLEUUID PHOTO_DATA_UUID("19B10005-E8F2-537E-4F6C-D104768A1214");
 static BLEUUID PHOTO_CONTROL_UUID("19B10006-E8F2-537E-4F6C-D104768A1214");
 static BLEUUID AUDIO_DATA_UUID("19B10001-E8F2-537E-4F6C-D104768A1214");
 static BLEUUID AUDIO_CODEC_UUID("19B10002-E8F2-537E-4F6C-D104768A1214");
+static BLEUUID AUDIO_CODEC_OPUS_UUID("19B10003-E8F2-537E-4F6C-D104768A1214");
 
 // Audio Codec ID
-constexpr uint8_t AUDIO_CODEC_ID_PCM_16KHZ_16BIT = 1;
+constexpr uint8_t AUDIO_CODEC_ID_PCM_8KHZ_16BIT = 2;   // New ID for 8kHz PCM
 
 // ---------------------------------------------------------------------------------
 // Photo Chunking
