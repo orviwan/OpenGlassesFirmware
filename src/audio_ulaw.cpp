@@ -1,13 +1,9 @@
+#include "config.h"
 #include "audio_ulaw.h"
 #include "audio_handler.h"
 #include <Arduino.h>
 #include <stdint.h>
 #include <string.h>
-
-// μ-law (G.711) encoding table
-static const uint8_t mu_law_encode_table[256] = {
-    // Table omitted for brevity, will use function instead
-};
 
 // μ-law encode a single 16-bit PCM sample
 static uint8_t linear_to_ulaw(int16_t pcm_val) {
