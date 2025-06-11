@@ -2,6 +2,7 @@
 #include "config.h" // For UUIDs
 #include "photo_manager.h" // For handle_photo_control
 #include "audio_handler.h"
+#include "audio_ulaw.h" // For μ-law streaming support
 #include <Arduino.h> // For Serial
 #include <BLEDevice.h>
 #include <BLE2902.h> // For BLE2902 descriptor
@@ -13,14 +14,12 @@ BLECharacteristic *g_photo_data_characteristic = nullptr;
 BLECharacteristic *g_photo_control_characteristic = nullptr;
 BLECharacteristic *g_audio_data_characteristic = nullptr;
 BLECharacteristic *g_battery_level_characteristic = nullptr; // This will be passed to battery_handler
-BLECharacteristic *g_opus_audio_characteristic = nullptr;
 
 bool g_is_ble_connected = false;
-bool g_opus_streaming_enabled = false;
 
-static TaskHandle_t opus_streaming_task_handle = nullptr;
 static TaskHandle_t pcm_streaming_task_handle = nullptr;
 static TaskHandle_t photo_streaming_task_handle = nullptr;
+static TaskHandle_t ulaw_streaming_task_handle = nullptr;
 
 // --- ServerHandler Class Implementation ---
 void ServerHandler::onConnect(BLEServer *server)
@@ -45,13 +44,6 @@ void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
         Serial.printf("[BLE] PhotoControl received: %d\n", received_value);
         handle_photo_control(received_value); // Call function from photo_manager
     }
-}
-
-// Helper to check if Opus notifications are enabled
-bool is_opus_notify_enabled() {
-    if (!g_opus_audio_characteristic) return false;
-    BLE2902* desc = (BLE2902*)g_opus_audio_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-    return desc && desc->getNotifications();
 }
 
 void configure_ble()
@@ -92,12 +84,12 @@ void configure_ble()
     uint8_t initial_control_value = 0; // Default to stop
     g_photo_control_characteristic->setValue(&initial_control_value, 1);
 
-    // Opus Audio Characteristic
-    g_opus_audio_characteristic = service->createCharacteristic(
-        AUDIO_CODEC_OPUS_UUID,
+    // μ-law Audio Characteristic
+    BLECharacteristic *ulaw_audio_characteristic = service->createCharacteristic(
+        AUDIO_CODEC_ULAW_UUID,
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    g_opus_audio_characteristic->addDescriptor(new BLE2902());
+    ulaw_audio_characteristic->addDescriptor(new BLE2902());
 
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
@@ -134,27 +126,6 @@ void configure_ble()
     BLEDevice::startAdvertising();
 
     Serial.println("[BLE] Initialized and advertising started.");
-}
-
-void opus_streaming_task(void *pvParameters) {
-    while (true) {
-        if (g_is_ble_connected && is_opus_notify_enabled()) {
-            g_opus_streaming_enabled = true;
-            process_and_send_opus_audio();
-        } else {
-            g_opus_streaming_enabled = false;
-            vTaskDelay(pdMS_TO_TICKS(50)); // Sleep longer when idle
-        }
-        // Short delay to yield, adjust as needed for your audio frame rate
-        vTaskDelay(pdMS_TO_TICKS(5));
-    }
-}
-
-void start_opus_streaming_task() {
-    if (opus_streaming_task_handle == nullptr) {
-        xTaskCreatePinnedToCore(
-            opus_streaming_task, "OpusStreamTask", 4096, NULL, 1, &opus_streaming_task_handle, 1);
-    }
 }
 
 void pcm_streaming_task(void *pvParameters) {
@@ -204,14 +175,32 @@ void start_photo_streaming_task() {
     }
 }
 
-void initialize_ble_and_tasks() {
-    configure_ble();
-    start_opus_streaming_task();
-    start_pcm_streaming_task();
-    start_photo_streaming_task();
+void ulaw_streaming_task(void *pvParameters) {
+    while (true) {
+        if (g_is_ble_connected && g_audio_data_characteristic) {
+            BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+            if (desc && desc->getNotifications()) {
+                process_and_send_ulaw_audio(g_audio_data_characteristic);
+            } else {
+                vTaskDelay(pdMS_TO_TICKS(50));
+            }
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
 }
 
-// Legacy stub for compatibility with old main loop code
-void handle_opus_streaming() {
-    // No-op: Opus streaming is now handled by FreeRTOS task
+void start_ulaw_streaming_task() {
+    if (ulaw_streaming_task_handle == nullptr) {
+        xTaskCreatePinnedToCore(
+            ulaw_streaming_task, "ULawStreamTask", 4096, NULL, 1, &ulaw_streaming_task_handle, 1);
+    }
+}
+
+void initialize_ble_and_tasks() {
+    configure_ble();
+    start_pcm_streaming_task();
+    start_ulaw_streaming_task();
+    start_photo_streaming_task();
 }

@@ -16,6 +16,5 @@ void configure_microphone();
 size_t read_microphone_data(uint8_t *buffer, size_t buffer_size); // More generic read
 
 #include "audio_pcm.h"
-#include "audio_opus.h"
 
 #endif // AUDIO_HANDLER_H
