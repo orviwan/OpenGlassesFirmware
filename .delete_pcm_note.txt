@@ -1,1 +1,0 @@
-All PCM code and references have been removed. Only μ-law (G.711) audio streaming is supported.

@@ -38,3 +38,9 @@
 - `src/photo_manager.cpp` – Photo streaming logic
 
 ## See README.md for quickstart and UUIDs
+
+| Stream Type     | UUID                                    |
+|------------------|-----------------------------------------|
+| Photo Data       | 19b10001-e8f2-537e-4f6c-d104768a1214 |
+| Photo Control    | 19b10002-e8f2-537e-4f6c-d104768a1214 |
+| μ-law Audio      | AUDIO_CODEC_ULAW_UUID                  | 19b10005-e8f2-537e-4f6c-d104768a1214    |

@@ -14,7 +14,7 @@
 |----------------|-------------------------|------------------------------------------|
 | Photo Data     | PHOTO_DATA_UUID         | b7e2f7e0-7e2f-7e2f-7e2f-b7e2f7e2f7e2     |
 | Photo Control  | PHOTO_CONTROL_UUID      | b7e2f7e3-7e2f-7e2f-7e2f-b7e2f7e2f7e2     |
-| μ-law Audio    | AUDIO_CODEC_ULAW_UUID   | 19b10005-e8f5-537e-4f6c-d104768a1214    |
+| μ-law Audio    | AUDIO_CODEC_ULAW_UUID   | 19b10005-e8f2-537e-4f6c-d104768a1214    |
 
 ## How to Use
 - Subscribe to the desired audio characteristic (μ-law) for streaming.
@@ -28,7 +28,7 @@ To receive μ-law (G.711) audio from the OpenGlass device over BLE:
 1. Connect to the device using BLE and discover its characteristics.
 2. Locate the μ-law Audio Characteristic:
    - **Name:** AUDIO_CODEC_ULAW_UUID
-   - **UUID:** 19b10005-e8f5-537e-4f6c-d104768a1214
+   - **UUID:** 19b10005-e8f2-537e-4f6c-d104768a1214
 3. Subscribe to notifications on this characteristic.
 4. Each notification will contain a frame of G.711 μ-law encoded audio (one byte per sample, 8kHz sample rate).
 5. On the client side, decode the μ-law data to PCM using a G.711 μ-law decoder (available in most audio libraries, e.g., WebAudio, Python, ffmpeg, etc.).
