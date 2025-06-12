@@ -17,7 +17,6 @@ BLECharacteristic *g_battery_level_characteristic = nullptr; // This will be pas
 
 bool g_is_ble_connected = false;
 
-static TaskHandle_t pcm_streaming_task_handle = nullptr;
 static TaskHandle_t photo_streaming_task_handle = nullptr;
 static TaskHandle_t ulaw_streaming_task_handle = nullptr;
 
@@ -128,30 +127,6 @@ void configure_ble()
     Serial.println("[BLE] Initialized and advertising started.");
 }
 
-void pcm_streaming_task(void *pvParameters) {
-    while (true) {
-        if (g_is_ble_connected && g_audio_data_characteristic) {
-            // Only send PCM if notifications are enabled
-            BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-            if (desc && desc->getNotifications()) {
-                process_and_send_audio(g_audio_data_characteristic);
-            } else {
-                vTaskDelay(pdMS_TO_TICKS(50));
-            }
-        } else {
-            vTaskDelay(pdMS_TO_TICKS(50));
-        }
-        vTaskDelay(pdMS_TO_TICKS(5));
-    }
-}
-
-void start_pcm_streaming_task() {
-    if (pcm_streaming_task_handle == nullptr) {
-        xTaskCreatePinnedToCore(
-            pcm_streaming_task, "PCMStreamTask", 4096, NULL, 1, &pcm_streaming_task_handle, 1);
-    }
-}
-
 void photo_streaming_task(void *pvParameters) {
     while (true) {
         if (g_is_ble_connected && g_photo_data_characteristic) {
@@ -200,7 +175,6 @@ void start_ulaw_streaming_task() {
 
 void initialize_ble_and_tasks() {
     configure_ble();
-    start_pcm_streaming_task();
     start_ulaw_streaming_task();
     start_photo_streaming_task();
 }

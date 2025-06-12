@@ -48,9 +48,8 @@ void loop()
 
     if (g_is_ble_connected)
     {
-        process_and_send_audio(g_audio_data_characteristic);
+        // Only handle photo streaming and battery updates here
         process_photo_capture_and_upload(current_time_ms);
-        
         if (current_time_ms - g_last_battery_update_ms >= BATTERY_UPDATE_INTERVAL_MS) {
             update_battery_level();
         }
