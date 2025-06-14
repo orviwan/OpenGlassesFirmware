@@ -5,7 +5,7 @@
 - Main BLE Service UUID (advertised): `a1b20000-7c4d-4e2a-9f1b-1234567890ab`
 - BLE photo streaming (single-shot and interval)
 - BLE audio streaming: μ-law (G.711)
-- Only μ-law audio streaming is supported; PCM has been removed for simplicity and efficiency.
+- Only μ-law audio streaming is supported
 - Modular audio handler structure (audio_handler, audio_ulaw)
 - FreeRTOS task offloading for μ-law and photo streaming
 - Optimized BLE throughput (MTU 247, fast connection interval)

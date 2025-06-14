@@ -35,9 +35,6 @@ static BLEUUID PHOTO_DATA_UUID("a1b20001-7c4d-4e2a-9f1b-1234567890ab");
 static BLEUUID PHOTO_CONTROL_UUID("a1b20002-7c4d-4e2a-9f1b-1234567890ab");
 static BLEUUID AUDIO_CODEC_ULAW_UUID("a1b20003-7c4d-4e2a-9f1b-1234567890ab");
 
-// Audio Codec ID
-constexpr uint8_t AUDIO_CODEC_ID_PCM_8KHZ_16BIT = 2;   // New ID for 8kHz PCM
-
 // ---------------------------------------------------------------------------------
 // Photo Chunking
 // ---------------------------------------------------------------------------------
