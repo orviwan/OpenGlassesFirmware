@@ -38,6 +38,23 @@
 - **Audio and photo can be streamed at the same time, but BLE bandwidth is shared.**
 - μ-law stream requires G.711 μ-law decoder on client
 
+### Photo Control (`PHOTO_CONTROL_UUID`: `a1b20002-7c4d-4e2a-9f1b-1234567890ab`) - Write
+Client writes a single byte to control photo capture:
+- `-1` (or `0xFF`): Trigger a single photo.
+- `0`: Stop any ongoing capture (interval or pending single shot).
+- `5` to `127`: Start interval capture. The value is the interval in seconds (e.g., `5` for 5 seconds). Minimum 5 seconds.
+
+### Photo Data (`PHOTO_DATA_UUID`: `a1b20001-7c4d-4e2a-9f1b-1234567890ab`) - Notify
+Device sends JPEG image data in chunks via notifications:
+1.  **Data Chunks:**
+    *   Header (2 bytes): 16-bit chunk counter (little-endian, starts at 0).
+    *   Payload (up to 200 bytes): JPEG image data.
+2.  **End-of-Photo Marker (2 bytes):**
+    *   Header: `0xFF 0xFF`. Signals image completion.
+3.  **CRC32 Checksum (6 bytes total, sent after End-of-Photo):**
+    *   Header (2 bytes): `0xFE 0xFE`.
+    *   Payload (4 bytes): 32-bit CRC32 of the entire JPEG image (little-endian). Client should verify this.
+
 ## File Map
 - `src/ble_handler.cpp` – BLE setup, task creation, connection logic
 - `src/audio_handler.cpp` – Mic setup, buffer

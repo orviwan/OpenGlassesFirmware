@@ -59,6 +59,41 @@ pcm_data = audioop.ulaw2lin(ulaw_data, 2)  # 2 bytes/sample for 16-bit PCM
 - Subscribe to the Photo Data Characteristic for photo streaming
 - Use the Photo Control Characteristic to trigger single-shot or interval photos
 
+### Detailed Photo Streaming Instructions
+
+**1. Photo Control (`PHOTO_CONTROL_UUID`: `a1b20002-7c4d-4e2a-9f1b-1234567890ab`) - Client Writes**
+
+To control photo capture, your client application should write a single byte to this characteristic:
+
+*   **`-1` (or `0xFF` if sending as `uint8_t`): Trigger Single Photo**
+    *   The device will capture and send one photo.
+*   **`0`: Stop Capture**
+    *   Stops any ongoing interval capture.
+*   **`5` to `127`: Start Interval Capture (Interval in Seconds)**
+    *   The device will capture photos at the specified interval (e.g., a value of `10` means every 10 seconds).
+    *   The firmware enforces a minimum interval of 5 seconds.
+
+**2. Photo Data (`PHOTO_DATA_UUID`: `a1b20001-7c4d-4e2a-9f1b-1234567890ab`) - Device Sends Notifications**
+
+Once photo capture is triggered, the device sends the JPEG image data in chunks via BLE notifications. Your client should:
+
+1.  **Subscribe to Notifications:** Enable notifications for this characteristic.
+2.  **Reassemble Chunks:** Each notification packet has the following structure:
+    *   **Data Chunks:**
+        *   Header (2 bytes): A 16-bit chunk counter (little-endian). This counter starts at `0` for the first chunk of an image and increments for each subsequent data chunk of that image.
+        *   Payload (up to 200 bytes): Raw JPEG image data bytes.
+    *   Collect these chunks and append the payload data in the order indicated by the chunk counter.
+3.  **Detect End-of-Photo:**
+    *   When all image data for a photo has been sent, the device will send a special 2-byte marker:
+        *   `Byte 0`: `0xFF`
+        *   `Byte 1`: `0xFF`
+    *   This signifies that the current photo transmission is complete.
+4.  **Verify CRC32 Checksum:**
+    *   Immediately following the End-of-Photo marker, the device sends one more special chunk containing a CRC32 checksum for the entire original JPEG image:
+        *   Header (2 bytes): `0xFE 0xFE`
+        *   Payload (4 bytes): The 32-bit CRC32 checksum, sent in little-endian byte order.
+    *   Your client should calculate the CRC32 of the reassembled JPEG data and compare it against this received value. If they match, the image was received correctly. If not, the image may be corrupted.
+
 ## Advanced
 - Modular code: see `src/audio_handler.cpp`, `audio_ulaw.cpp`, `photo_manager.cpp`
 - All streaming logic is non-blocking and runs in parallel tasks
