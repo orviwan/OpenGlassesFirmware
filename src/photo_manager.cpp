@@ -3,6 +3,7 @@
 #include "camera_handler.h" // For take_photo(), release_photo_buffer(), and fb
 #include "ble_handler.h"    // For g_photo_data_characteristic and g_is_ble_connected
 #include <Arduino.h> // For Serial, millis(), memcpy()
+#include <esp_rom_crc.h> // For esp_rom_crc32_le (ESP32 ROM CRC32 hardware)
 
 // Define global photo state variables here
 // bool g_is_capturing_photos = false; // Replaced by g_capture_mode
@@ -45,7 +46,8 @@ void handle_photo_control(int8_t control_value) {
         g_capture_mode = MODE_STOP;
         g_capture_interval_ms = 0;
         g_single_shot_pending = false;
-    } else if (control_value >= 5 && control_value <= 127) { // Only allow intervals >= 5s
+    } else if (control_value >= 5 && control_value <= 127) // Only allow intervals >= 5s
+    {
         Serial.printf("[PHOTO] Control: Interval capture requested. Interval: %d s.\n", control_value);
         g_capture_interval_ms = (unsigned long)control_value * 1000;
         g_capture_mode = MODE_INTERVAL;
@@ -118,20 +120,34 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
 
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
-            // Serial.printf("[PHOTO] Sent chunk %u (%zu bytes). %zu bytes remaining.\n", g_sent_photo_frames + 1, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN, remaining - bytes_to_copy); // Commented to reduce log noise
+            Serial.printf("[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu\n", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
 
             g_sent_photo_bytes += bytes_to_copy;
             g_sent_photo_frames++;
-            // Serial.printf("[PHOTO] Uploading chunk %u (%zu bytes). %zu bytes remaining.\n", g_sent_photo_frames, bytes_to_copy, remaining - bytes_to_copy);
         } else {
-            s_photo_chunk_buffer[0] = 0xFF; // End of photo marker
+            // End-of-photo marker
+            s_photo_chunk_buffer[0] = 0xFF;
             s_photo_chunk_buffer[1] = 0xFF;
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
-            // Serial.printf("[PHOTO] Sent end-of-photo marker. Total chunks: %u, Total bytes: %zu\n", g_sent_photo_frames, g_sent_photo_bytes); // Commented to reduce log noise
+            Serial.printf("[PHOTO][END] Sent end-of-photo marker. Total chunks: %u, Total bytes: %zu\n", g_sent_photo_frames, g_sent_photo_bytes);
+
+            // Calculate CRC32 of the JPEG buffer
+            uint32_t crc = esp_rom_crc32_le(0, fb->buf, fb->len);
+            Serial.printf("[PHOTO][CRC32] Calculated CRC32: 0x%08lX\n", crc);
+            // Send CRC32 as a special chunk: header 0xFE 0xFE, 4 bytes CRC32 (little-endian)
+            s_photo_chunk_buffer[0] = 0xFE;
+            s_photo_chunk_buffer[1] = 0xFE;
+            s_photo_chunk_buffer[2] = (uint8_t)(crc & 0xFF);
+            s_photo_chunk_buffer[3] = (uint8_t)((crc >> 8) & 0xFF);
+            s_photo_chunk_buffer[4] = (uint8_t)((crc >> 16) & 0xFF);
+            s_photo_chunk_buffer[5] = (uint8_t)((crc >> 24) & 0xFF);
+            g_photo_data_characteristic->setValue(s_photo_chunk_buffer, 6);
+            g_photo_data_characteristic->notify();
+            Serial.println("[PHOTO][CRC32] Sent CRC32 chunk to client.");
+
             g_is_photo_uploading = false;
             release_photo_buffer(); // release_photo_buffer is from camera_handler.h
-            // Serial.println("[PHOTO] Photo upload complete."); // Commented to reduce log noise
         }
     }
 }

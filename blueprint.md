@@ -1,7 +1,7 @@
 # OpenGlass Firmware Blueprint (2025)
 
 ## Overview
-- BLE streaming for photo and audio (PCM and μ-law/G.711)
+- BLE streaming for photo and audio (μ-law/G.711)
 - Modular, task-based architecture using FreeRTOS
 - Optimized for ESP32-S3 (Seeed Xiao ESP32S3 Sense)
 

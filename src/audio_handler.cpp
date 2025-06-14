@@ -1,7 +1,7 @@
 #include "audio_handler.h"
 #include "config.h"
 #include <Arduino.h>
-#include <I2S.h>
+#include "driver/i2s.h"
 
 size_t i2s_recording_buffer_size = FRAME_SIZE * (SAMPLE_BITS / 8);
 size_t audio_packet_buffer_size = (FRAME_SIZE * (SAMPLE_BITS / 8)) + AUDIO_FRAME_HEADER_LEN;
@@ -10,12 +10,43 @@ uint8_t *s_i2s_recording_buffer = nullptr;
 uint8_t *s_audio_packet_buffer = nullptr;
 uint16_t g_audio_frame_count = 0;
 
+// I2S port and pin config for ESP32-S3 (update pins as needed)
+#define I2S_PORT I2S_NUM_0
+#define I2S_MIC_SERIAL_CLOCK 42
+#define I2S_MIC_SERIAL_DATA 41
+
 void configure_microphone()
 {
-    I2S.setAllPins(-1, 42, 41, -1, -1);
-    if (!I2S.begin(PDM_MONO_MODE, SAMPLE_RATE, SAMPLE_BITS))
-    {
-        Serial.println("[AUDIO] ERROR: Failed to initialize I2S! Halting.");
+    // I2S config for PDM mic (mono, 8kHz, 16-bit)
+    i2s_config_t i2s_config = {
+        .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
+        .sample_rate = SAMPLE_RATE,
+        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+        .communication_format = I2S_COMM_FORMAT_STAND_MSB,
+        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+        .dma_buf_count = 4,
+        .dma_buf_len = FRAME_SIZE,
+        .use_apll = false,
+        .tx_desc_auto_clear = false,
+        .fixed_mclk = 0
+    };
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = I2S_MIC_SERIAL_CLOCK, // Serial clock (BCK)
+        .ws_io_num = -1,                    // Not used for PDM
+        .data_out_num = -1,                 // Not used (RX only)
+        .data_in_num = I2S_MIC_SERIAL_DATA  // Serial data in
+    };
+    // Uninstall any previous driver
+    i2s_driver_uninstall(I2S_PORT);
+    esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
+    if (err != ESP_OK) {
+        Serial.printf("[AUDIO] ERROR: Failed to install I2S driver! Code: %d\n", err);
+        while (1);
+    }
+    err = i2s_set_pin(I2S_PORT, &pin_config);
+    if (err != ESP_OK) {
+        Serial.printf("[AUDIO] ERROR: Failed to set I2S pins! Code: %d\n", err);
         while (1);
     }
     Serial.printf("[MEM] Free PSRAM before I2S recording buffer alloc: %u bytes\n", ESP.getFreePsram());
@@ -32,14 +63,14 @@ void configure_microphone()
         Serial.println("[MEM] ERROR: Failed to allocate audio packet buffer! Halting.");
         while (1);
     }
-    Serial.println("[AUDIO] Microphone configured and buffers allocated.");
+    Serial.println("[AUDIO] Microphone configured and buffers allocated (ESP-IDF I2S).");
 }
 
 size_t read_microphone_data(uint8_t *buffer, size_t buffer_size)
 {
-    size_t bytes_recorded = 0;
+    size_t bytes_read = 0;
     if (buffer) {
-        esp_i2s::i2s_read(esp_i2s::I2S_NUM_0, buffer, buffer_size, &bytes_recorded, portMAX_DELAY);
+        i2s_read(I2S_PORT, buffer, buffer_size, &bytes_read, portMAX_DELAY);
     }
-    return bytes_recorded;
+    return bytes_read;
 }

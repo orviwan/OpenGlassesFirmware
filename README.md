@@ -34,7 +34,7 @@ To receive μ-law (G.711) audio from the OpenGlass device over BLE:
 5. On the client side, decode the μ-law data to PCM using a G.711 μ-law decoder (available in most audio libraries, e.g., WebAudio, Python, ffmpeg, etc.).
 6. Play or process the decoded PCM audio as needed.
 
-**Note:** Only one audio stream (PCM or μ-law) should be active at a time for best performance.
+**Note:** Only one audio stream should be active at a time for best performance.
 
 Example (Python, using `pyaudio` and `audioop`):
 ```python
