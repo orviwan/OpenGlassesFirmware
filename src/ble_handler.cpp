@@ -1,7 +1,8 @@
 #include "ble_handler.h"
 #include "config.h" // For UUIDs
 #include "photo_manager.h" // For handle_photo_control
-#include "audio_handler.h"
+#include "audio_handler.h" // For configure_microphone, deinit_microphone
+#include "camera_handler.h" // For configure_camera, deinit_camera
 #include "audio_ulaw.h" // For μ-law streaming support
 #include <Arduino.h> // For Serial
 #include <BLEDevice.h>
