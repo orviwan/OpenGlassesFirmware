@@ -32,4 +32,7 @@ void configure_ble();
 // Forward declaration from photo_manager.h, used by PhotoControlCallback
 void handle_photo_control(int8_t control_value);
 
+void start_ulaw_streaming_task();
+void start_photo_streaming_task();
+
 #endif // BLE_HANDLER_H

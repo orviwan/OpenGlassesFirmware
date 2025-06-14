@@ -32,7 +32,8 @@ void setup()
     configure_camera();
     initialize_photo_manager(); // Initializes photo buffer and default interval
     initialize_battery_handler(g_battery_level_characteristic); // Pass the BLE characteristic
-    
+    start_ulaw_streaming_task(); // Start μ-law audio streaming task
+    start_photo_streaming_task(); // Start photo streaming task
     // Set initial battery level after BLE characteristic is available
     update_battery_level(); 
     

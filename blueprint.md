@@ -41,6 +41,6 @@
 
 | Stream Type     | UUID                                    |
 |------------------|-----------------------------------------|
-| Photo Data       | 19b10001-e8f2-537e-4f6c-d104768a1214 |
-| Photo Control    | 19b10002-e8f2-537e-4f6c-d104768a1214 |
-| μ-law Audio      | AUDIO_CODEC_ULAW_UUID                  | 19b10005-e8f2-537e-4f6c-d104768a1214    |
+| Photo Data       | PHOTO_DATA_UUID         | a1b20001-7c4d-4e2a-9f1b-1234567890ab     |
+| Photo Control    | PHOTO_CONTROL_UUID      | a1b20002-7c4d-4e2a-9f1b-1234567890ab     |
+| μ-law Audio      | AUDIO_CODEC_ULAW_UUID   | a1b20003-7c4d-4e2a-9f1b-1234567890ab     |

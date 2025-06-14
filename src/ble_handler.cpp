@@ -56,19 +56,6 @@ void configure_ble()
     // Create the main custom service
     BLEService *service = server->createService(SERVICE_UUID);
 
-    // Audio Data Characteristic
-    g_audio_data_characteristic = service->createCharacteristic(
-        AUDIO_DATA_UUID,
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-    g_audio_data_characteristic->addDescriptor(new BLE2902());
-
-    // Audio Codec Characteristic
-    BLECharacteristic *audioCodecCharacteristic = service->createCharacteristic(
-        AUDIO_CODEC_UUID,
-        BLECharacteristic::PROPERTY_READ);
-    uint8_t current_audio_codec_id = AUDIO_CODEC_ID_PCM_8KHZ_16BIT; // Use the new 8kHz ID
-    audioCodecCharacteristic->setValue(&current_audio_codec_id, 1);
-
     // Photo Data Characteristic
     g_photo_data_characteristic = service->createCharacteristic(
         PHOTO_DATA_UUID,
@@ -84,11 +71,11 @@ void configure_ble()
     g_photo_control_characteristic->setValue(&initial_control_value, 1);
 
     // μ-law Audio Characteristic
-    BLECharacteristic *ulaw_audio_characteristic = service->createCharacteristic(
+    g_audio_data_characteristic = service->createCharacteristic(
         AUDIO_CODEC_ULAW_UUID,
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    ulaw_audio_characteristic->addDescriptor(new BLE2902());
+    g_audio_data_characteristic->addDescriptor(new BLE2902());
 
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
@@ -173,8 +160,3 @@ void start_ulaw_streaming_task() {
     }
 }
 
-void initialize_ble_and_tasks() {
-    configure_ble();
-    start_ulaw_streaming_task();
-    start_photo_streaming_task();
-}
