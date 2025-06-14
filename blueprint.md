@@ -46,8 +46,8 @@
 
 ## See README.md for quickstart and UUIDs
 
-| Stream Type     | UUID                                    |
-|------------------|-----------------------------------------|
+| Stream Type      | Identifier              | UUID                                     |
+|------------------|--------------------------------------------------------------------|
 | Photo Data       | PHOTO_DATA_UUID         | a1b20001-7c4d-4e2a-9f1b-1234567890ab     |
 | Photo Control    | PHOTO_CONTROL_UUID      | a1b20002-7c4d-4e2a-9f1b-1234567890ab     |
 | μ-law Audio      | AUDIO_CODEC_ULAW_UUID   | a1b20003-7c4d-4e2a-9f1b-1234567890ab     |
