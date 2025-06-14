@@ -28,8 +28,6 @@ void setup()
 
     // Initialize modules
     configure_ble();
-    configure_microphone();
-    configure_camera();
     initialize_photo_manager(); // Initializes photo buffer and default interval
     initialize_battery_handler(g_battery_level_characteristic); // Pass the BLE characteristic
     start_ulaw_streaming_task(); // Start μ-law audio streaming task

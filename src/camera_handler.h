@@ -10,5 +10,6 @@ extern camera_fb_t *fb;
 void configure_camera();
 bool take_photo();
 void release_photo_buffer(); // New helper function
+void deinit_camera(); // Add deinit function
 
 #endif // CAMERA_HANDLER_H

@@ -14,5 +14,6 @@ extern uint16_t g_audio_frame_count;
 
 void configure_microphone();
 size_t read_microphone_data(uint8_t *buffer, size_t buffer_size); // More generic read
+void deinit_microphone(); // Add deinit function
 
 #endif // AUDIO_HANDLER_H

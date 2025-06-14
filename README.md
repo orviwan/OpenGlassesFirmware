@@ -1,6 +1,8 @@
 # OpenGlass Firmware - BLE Streaming Architecture (2025)
 
 ## Features
+- BLE Device Name: **OpenGlass**
+- Main BLE Service UUID (advertised): `a1b20000-7c4d-4e2a-9f1b-1234567890ab`
 - BLE photo streaming (single-shot and interval)
 - BLE audio streaming: μ-law (G.711)
 - Only μ-law audio streaming is supported; PCM has been removed for simplicity and efficiency.
@@ -48,9 +50,11 @@ pcm_data = audioop.ulaw2lin(ulaw_data, 2)  # 2 bytes/sample for 16-bit PCM
 - BLE MTU set to 247 for high throughput
 - Connection interval set to 7.5ms–25ms
 - All streaming (audio/photo) is offloaded to FreeRTOS tasks
-- Device is idle when no client is connected or notifications are disabled
+- Camera and microphone are de-initialized when no client is connected to save power and reduce heat. They are re-initialized upon client connection.
+- Device advertises when no client is connected.
 
 ## Client Instructions
+- Connect to the BLE device named "OpenGlass". Alternatively, scan for devices advertising the Main BLE Service UUID (`a1b20000-7c4d-4e2a-9f1b-1234567890ab`) for discovery.
 - Subscribe to the μ-law Audio Characteristic for G.711 μ-law audio (decoder required)
 - Subscribe to the Photo Data Characteristic for photo streaming
 - Use the Photo Control Characteristic to trigger single-shot or interval photos

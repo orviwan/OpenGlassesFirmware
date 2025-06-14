@@ -74,3 +74,23 @@ size_t read_microphone_data(uint8_t *buffer, size_t buffer_size)
     }
     return bytes_read;
 }
+
+void deinit_microphone() {
+    if (s_i2s_recording_buffer) {
+        free(s_i2s_recording_buffer);
+        s_i2s_recording_buffer = nullptr;
+        Serial.println("[MEM] I2S recording buffer freed.");
+    }
+    if (s_audio_packet_buffer) {
+        free(s_audio_packet_buffer);
+        s_audio_packet_buffer = nullptr;
+        Serial.println("[MEM] Audio packet buffer freed.");
+    }
+
+    esp_err_t err = i2s_driver_uninstall(I2S_PORT);
+    if (err == ESP_OK) {
+        Serial.println("[AUDIO] I2S driver uninstalled successfully.");
+    } else {
+        Serial.printf("[AUDIO] ERROR: Failed to uninstall I2S driver! Code: %d\n", err);
+    }
+}

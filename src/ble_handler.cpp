@@ -25,12 +25,22 @@ void ServerHandler::onConnect(BLEServer *server)
 {
     g_is_ble_connected = true;
     Serial.println("[BLE] Client connected.");
+    // Initialize peripherals on connect
+    Serial.println("[PERIPH] Initializing camera and microphone...");
+    configure_camera();
+    configure_microphone();
+    Serial.println("[PERIPH] Camera and microphone initialized.");
 }
 
 void ServerHandler::onDisconnect(BLEServer *server)
 {
     g_is_ble_connected = false;
     Serial.println("[BLE] Client disconnected. Restarting advertising.");
+    // De-initialize peripherals on disconnect
+    Serial.println("[PERIPH] De-initializing camera and microphone...");
+    deinit_camera();
+    deinit_microphone();
+    Serial.println("[PERIPH] Camera and microphone de-initialized.");
     BLEDevice::startAdvertising(); // Restart advertising
 }
 

@@ -66,3 +66,13 @@ void release_photo_buffer() {
         fb = nullptr;
     }
 }
+
+void deinit_camera() {
+    release_photo_buffer(); // Ensure buffer is released
+    esp_err_t err = esp_camera_deinit();
+    if (err == ESP_OK) {
+        Serial.println("[CAM] Deinitialized successfully.");
+    } else {
+        Serial.printf("[CAM] ERROR: Failed to deinitialize camera! Code: 0x%x\n", err);
+    }
+}

@@ -1,6 +1,8 @@
 # OpenGlass Firmware Blueprint (2025)
 
 ## Overview
+- BLE Device Name: **OpenGlass**
+- Main BLE Service UUID (advertised): `a1b20000-7c4d-4e2a-9f1b-1234567890ab`
 - BLE streaming for photo and audio (μ-law/G.711)
 - Modular, task-based architecture using FreeRTOS
 - Optimized for ESP32-S3 (Seeed Xiao ESP32S3 Sense)
@@ -17,7 +19,9 @@
     - MTU 247
     - Fast connection interval (7.5–25ms)
 - **Idle Behavior:**
-    - Device is idle (no streaming) when no client is connected or notifications are off
+    - Camera and microphone are de-initialized when no client is connected to save power and reduce heat.
+    - Peripherals are re-initialized upon client connection.
+    - Device advertises when no client is connected.
 
 ## Streaming Logic
 - Each streaming type runs in its own FreeRTOS task
@@ -27,6 +31,7 @@
 - For best reliability, avoid high-frequency photo capture during audio streaming.
 
 ## Client Usage
+- Connect to the BLE device named "OpenGlass", or scan for devices advertising the Main BLE Service UUID (`a1b20000-7c4d-4e2a-9f1b-1234567890ab`).
 - Subscribe to the desired audio characteristic (μ-law)
 - Subscribe to Photo Data for photo streaming
 - Use Photo Control to trigger photos (single/interval)
