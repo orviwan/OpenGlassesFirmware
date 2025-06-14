@@ -23,12 +23,14 @@
 - Each streaming type runs in its own FreeRTOS task
 - Tasks check connection and notification state before sending data
 - All streaming is non-blocking and parallel
+- **Audio and photo streaming can run simultaneously, but BLE bandwidth is shared.**
+- For best reliability, avoid high-frequency photo capture during audio streaming.
 
 ## Client Usage
 - Subscribe to the desired audio characteristic (μ-law)
 - Subscribe to Photo Data for photo streaming
 - Use Photo Control to trigger photos (single/interval)
-- Only one audio stream should be active at a time
+- **Audio and photo can be streamed at the same time, but BLE bandwidth is shared.**
 - μ-law stream requires G.711 μ-law decoder on client
 
 ## File Map

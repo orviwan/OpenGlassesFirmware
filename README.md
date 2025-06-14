@@ -20,6 +20,7 @@
 - Subscribe to the desired audio characteristic (μ-law) for streaming.
 - Photo streaming is controlled via the Photo Control characteristic.
 - All streaming is handled by FreeRTOS tasks for maximum efficiency.
+- **Audio and photo streaming can run simultaneously, but BLE bandwidth is shared. For best reliability, avoid high-frequency photo capture during audio streaming.**
 
 ## How to Use μ-law (G.711) Audio Streaming
 
@@ -34,7 +35,7 @@ To receive μ-law (G.711) audio from the OpenGlass device over BLE:
 5. On the client side, decode the μ-law data to PCM using a G.711 μ-law decoder (available in most audio libraries, e.g., WebAudio, Python, ffmpeg, etc.).
 6. Play or process the decoded PCM audio as needed.
 
-**Note:** Only one audio stream should be active at a time for best performance.
+**Note:** Audio and photo can be streamed at the same time, but BLE bandwidth is shared. For best reliability, avoid high-frequency photo capture during audio streaming.
 
 Example (Python, using `pyaudio` and `audioop`):
 ```python
