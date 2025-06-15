@@ -124,6 +124,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
             Serial.printf("[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu\n", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
+            delay(10); // Add a 10ms delay to help client processing
 
             g_sent_photo_bytes += bytes_to_copy;
             g_sent_photo_frames++;
