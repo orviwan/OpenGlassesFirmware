@@ -55,12 +55,6 @@ Device sends JPEG image data in chunks via notifications:
     *   Header (2 bytes): `0xFE 0xFE`.
     *   Payload (4 bytes): 32-bit CRC32 of the entire JPEG image (little-endian). Client should verify this.
 
-## File Map
-- `src/ble_handler.cpp` – BLE setup, task creation, connection logic
-- `src/audio_handler.cpp` – Mic setup, buffer
-- `src/audio_ulaw.cpp` – μ-law streaming logic
-- `src/photo_manager.cpp` – Photo streaming logic
-
 ## See README.md for quickstart and UUIDs
 
 | Stream Type      | Identifier              | UUID                                     |
@@ -68,3 +62,10 @@ Device sends JPEG image data in chunks via notifications:
 | Photo Data       | PHOTO_DATA_UUID         | a1b20001-7c4d-4e2a-9f1b-1234567890ab     |
 | Photo Control    | PHOTO_CONTROL_UUID      | a1b20002-7c4d-4e2a-9f1b-1234567890ab     |
 | μ-law Audio      | AUDIO_CODEC_ULAW_UUID   | a1b20003-7c4d-4e2a-9f1b-1234567890ab     |
+
+
+## File Map
+- `src/ble_handler.cpp` – BLE setup, task creation, connection logic
+- `src/audio_handler.cpp` – Mic setup, buffer
+- `src/audio_ulaw.cpp` – μ-law streaming logic
+- `src/photo_manager.cpp` – Photo streaming logic

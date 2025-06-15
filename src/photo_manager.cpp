@@ -51,8 +51,11 @@ void handle_photo_control(int8_t control_value) {
         Serial.printf("[PHOTO] Control: Interval capture requested. Interval: %d s.\n", control_value);
         g_capture_interval_ms = (unsigned long)control_value * 1000;
         g_capture_mode = MODE_INTERVAL;
-        g_last_capture_time_ms = millis(); // Start timer from now, so first image is after interval
-        g_single_shot_pending = false;
+        // g_last_capture_time_ms = millis(); // Start timer from now, so first image is after interval
+        // Instead, trigger an immediate photo, and the timer will be set after that photo is taken.
+        g_single_shot_pending = true; // Trigger an immediate photo
+        g_last_capture_time_ms = millis(); // Set last capture time to now to ensure the *next* interval photo is after the full interval
+        Serial.println("[PHOTO] Interval mode set. First photo will be taken immediately.");
     } else {
         Serial.printf("[PHOTO] Ignoring invalid or too-short interval: %d\n", control_value);
     }
@@ -76,7 +79,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             if (current_time_ms - g_last_capture_time_ms >= (unsigned long)g_capture_interval_ms) {
                 trigger_capture = true;
                 // g_last_capture_time_ms = current_time_ms; // Update timer *after* capture attempt succeeds
-                Serial.println("[PHOTO] Interval capture."); // Simplified log
+                Serial.println("[PHOTO] Interval capture triggered by timer."); // Clarified log
             }
         }
 
@@ -93,7 +96,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
                     g_sent_photo_frames = 0;
                     // Update interval timer only on successful capture
                     if (g_capture_mode == MODE_INTERVAL) {
-                         g_last_capture_time_ms = current_time_ms;
+                         g_last_capture_time_ms = current_time_ms; // Reset timer for the next interval
                     }
                      Serial.printf("[PHOTO] Uploading image: %zu bytes\n", fb->len); // Simplified log
                 } else {
