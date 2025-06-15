@@ -48,11 +48,23 @@ void ServerHandler::onDisconnect(BLEServer *server)
 // --- PhotoControlCallback Class Implementation ---
 void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
 {
-    if (characteristic->getLength() == 1)
+    size_t len = characteristic->getLength();
+    Serial.printf("[BLE] PhotoControl received %zu bytes of data.\n", len);
+    if (len == 1)
     {
         int8_t received_value = characteristic->getData()[0];
-        Serial.printf("[BLE] PhotoControl received: %d\n", received_value);
+        Serial.printf("[BLE] PhotoControl single byte value: %d\n", received_value);
         handle_photo_control(received_value); // Call function from photo_manager
+    } else if (len > 0) {
+        Serial.print("[BLE] PhotoControl received data (HEX): ");
+        uint8_t* data = characteristic->getData();
+        for (size_t i = 0; i < len; i++) {
+            Serial.printf("%02X ", data[i]);
+        }
+        Serial.println();
+        Serial.println("[BLE] PhotoControl expected a single byte. Command ignored.");
+    } else {
+        Serial.println("[BLE] PhotoControl received empty data. Command ignored.");
     }
 }
 
@@ -129,15 +141,27 @@ void photo_streaming_task(void *pvParameters) {
     while (true) {
         if (g_is_ble_connected && g_photo_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_photo_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-            if (desc && desc->getNotifications()) {
+            bool notifications_enabled = (desc && desc->getNotifications());
+            // Log status less frequently to avoid spamming, e.g., only on change or periodically
+            static bool last_notifications_enabled_status = false;
+            if (notifications_enabled != last_notifications_enabled_status) {
+                Serial.printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
+                last_notifications_enabled_status = notifications_enabled;
+            }
+
+            if (notifications_enabled) {
                 process_photo_capture_and_upload(millis());
             } else {
+                // If notifications are not enabled, reset photo capture mode to stop
+                // This prevents the photo manager from trying to capture if client disconnects/disables notifications
+                // without sending a stop command.
+                // handle_photo_control(0); // 0 is stop command
                 vTaskDelay(pdMS_TO_TICKS(100));
             }
         } else {
             vTaskDelay(pdMS_TO_TICKS(100));
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(10)); // Task runs approx every 10ms + processing time
     }
 }
 
