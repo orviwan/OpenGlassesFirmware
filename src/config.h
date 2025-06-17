@@ -36,6 +36,15 @@ static BLEUUID PHOTO_CONTROL_UUID("19B10006-E8F2-537E-4F6C-D104768A1214");
 static BLEUUID AUDIO_CODEC_ULAW_UUID("19B10001-E8F2-537E-4F6C-D104768A1214");
 
 // ---------------------------------------------------------------------------------
+// BLE Characteristic User Descriptions (UUID 0x2901)
+// ---------------------------------------------------------------------------------
+constexpr const char* PHOTO_DATA_USER_DESCRIPTION = "Photo JPEG Data Stream";
+constexpr const char* PHOTO_CONTROL_USER_DESCRIPTION = "Photo Capture Control";
+constexpr const char* AUDIO_ULAW_USER_DESCRIPTION = "μ-law (G.711) Audio Stream";
+// Note: Battery Level is a standard characteristic, but a user description can still be added.
+constexpr const char* BATTERY_LEVEL_USER_DESCRIPTION = "Device Battery Level";
+
+// ---------------------------------------------------------------------------------
 // Device Information Strings
 // ---------------------------------------------------------------------------------
 constexpr const char* DEVICE_MANUFACTURER_NAME = "Based Hardware";

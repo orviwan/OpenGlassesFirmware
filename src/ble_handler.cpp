@@ -83,13 +83,15 @@ void configure_ble()
     g_photo_data_characteristic = service->createCharacteristic(
         PHOTO_DATA_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-    g_photo_data_characteristic->addDescriptor(new BLE2902());
+    g_photo_data_characteristic->addDescriptor(new BLE2902()); // For notifications
+    g_photo_data_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), PHOTO_DATA_USER_DESCRIPTION));
 
     // Photo Control Characteristic
     g_photo_control_characteristic = service->createCharacteristic(
         PHOTO_CONTROL_UUID,
         BLECharacteristic::PROPERTY_WRITE);
     g_photo_control_characteristic->setCallbacks(new PhotoControlCallback());
+    g_photo_control_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), PHOTO_CONTROL_USER_DESCRIPTION));
     uint8_t initial_control_value = 0; // Default to stop
     g_photo_control_characteristic->setValue(&initial_control_value, 1);
 
@@ -98,7 +100,8 @@ void configure_ble()
         AUDIO_CODEC_ULAW_UUID,
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    g_audio_data_characteristic->addDescriptor(new BLE2902());
+    g_audio_data_characteristic->addDescriptor(new BLE2902()); // For notifications
+    g_audio_data_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), AUDIO_ULAW_USER_DESCRIPTION));
 
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
@@ -116,7 +119,8 @@ void configure_ble()
     g_battery_level_characteristic = battery_service->createCharacteristic(
         BATTERY_LEVEL_CHAR_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-    g_battery_level_characteristic->addDescriptor(new BLE2902());
+    g_battery_level_characteristic->addDescriptor(new BLE2902()); // For notifications
+    g_battery_level_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), BATTERY_LEVEL_USER_DESCRIPTION));
     // Initial battery value is set by battery_handler via initialize_battery_handler
 
     // Start services
