@@ -84,14 +84,18 @@ void configure_ble()
         PHOTO_DATA_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
     g_photo_data_characteristic->addDescriptor(new BLE2902()); // For notifications
-    g_photo_data_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), PHOTO_DATA_USER_DESCRIPTION));
+    BLEDescriptor *pPhotoDataDesc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+    pPhotoDataDesc->setValue(PHOTO_DATA_USER_DESCRIPTION);
+    g_photo_data_characteristic->addDescriptor(pPhotoDataDesc);
 
     // Photo Control Characteristic
     g_photo_control_characteristic = service->createCharacteristic(
         PHOTO_CONTROL_UUID,
         BLECharacteristic::PROPERTY_WRITE);
     g_photo_control_characteristic->setCallbacks(new PhotoControlCallback());
-    g_photo_control_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), PHOTO_CONTROL_USER_DESCRIPTION));
+    BLEDescriptor *pPhotoControlDesc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+    pPhotoControlDesc->setValue(PHOTO_CONTROL_USER_DESCRIPTION);
+    g_photo_control_characteristic->addDescriptor(pPhotoControlDesc);
     uint8_t initial_control_value = 0; // Default to stop
     g_photo_control_characteristic->setValue(&initial_control_value, 1);
 
@@ -101,7 +105,9 @@ void configure_ble()
         BLECharacteristic::PROPERTY_NOTIFY
     );
     g_audio_data_characteristic->addDescriptor(new BLE2902()); // For notifications
-    g_audio_data_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), AUDIO_ULAW_USER_DESCRIPTION));
+    BLEDescriptor *pAudioUlawDesc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+    pAudioUlawDesc->setValue(AUDIO_ULAW_USER_DESCRIPTION);
+    g_audio_data_characteristic->addDescriptor(pAudioUlawDesc);
 
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
@@ -120,7 +126,9 @@ void configure_ble()
         BATTERY_LEVEL_CHAR_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
     g_battery_level_characteristic->addDescriptor(new BLE2902()); // For notifications
-    g_battery_level_characteristic->addDescriptor(new BLEDescriptor(BLEUUID((uint16_t)0x2901), BATTERY_LEVEL_USER_DESCRIPTION));
+    BLEDescriptor *pBatteryLevelDesc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+    pBatteryLevelDesc->setValue(BATTERY_LEVEL_USER_DESCRIPTION);
+    g_battery_level_characteristic->addDescriptor(pBatteryLevelDesc);
     // Initial battery value is set by battery_handler via initialize_battery_handler
 
     // Start services
