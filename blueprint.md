@@ -2,7 +2,7 @@
 
 ## Overview
 - BLE Device Name: **OpenGlass**
-- Main BLE Service UUID (advertised): `a1b20000-7c4d-4e2a-9f1b-1234567890ab`
+- Main BLE Service UUID (advertised): `19B10000-E8F2-537E-4F6C-D104768A1214`
 - BLE streaming for photo and audio (μ-law/G.711)
 - Modular, task-based architecture using FreeRTOS
 - Optimized for ESP32-S3 (Seeed Xiao ESP32S3 Sense)
@@ -31,20 +31,20 @@
 - For best reliability, avoid high-frequency photo capture during audio streaming.
 
 ## Client Usage
-- Connect to the BLE device named "OpenGlass", or scan for devices advertising the Main BLE Service UUID (`a1b20000-7c4d-4e2a-9f1b-1234567890ab`).
+- Connect to the BLE device named "OpenGlass", or scan for devices advertising the Main BLE Service UUID (`19B10000-E8F2-537E-4F6C-D104768A1214`).
 - Subscribe to the desired audio characteristic (μ-law)
 - Subscribe to Photo Data for photo streaming
 - Use Photo Control to trigger photos (single/interval)
 - **Audio and photo can be streamed at the same time, but BLE bandwidth is shared.**
 - μ-law stream requires G.711 μ-law decoder on client
 
-### Photo Control (`PHOTO_CONTROL_UUID`: `a1b20002-7c4d-4e2a-9f1b-1234567890ab`) - Write
+### Photo Control (`PHOTO_CONTROL_UUID`: `19B10006-E8F2-537E-4F6C-D104768A1214`) - Write
 Client writes a single byte to control photo capture:
 - `-1` (or `0xFF`): Trigger a single photo.
 - `0`: Stop any ongoing capture (interval or pending single shot).
 - `5` to `127`: Start interval capture. The value is the interval in seconds (e.g., `5` for 5 seconds). Minimum 5 seconds.
 
-### Photo Data (`PHOTO_DATA_UUID`: `a1b20001-7c4d-4e2a-9f1b-1234567890ab`) - Notify
+### Photo Data (`PHOTO_DATA_UUID`: `19B10005-E8F2-537E-4F6C-D104768A1214`) - Notify
 Device sends JPEG image data in chunks via notifications:
 1.  **Data Chunks:**
     *   Header (2 bytes): 16-bit chunk counter (little-endian, starts at 0).
@@ -59,9 +59,9 @@ Device sends JPEG image data in chunks via notifications:
 
 | Stream Type      | Identifier              | UUID                                     |
 |------------------|--------------------------------------------------------------------|
-| Photo Data       | PHOTO_DATA_UUID         | a1b20001-7c4d-4e2a-9f1b-1234567890ab     |
-| Photo Control    | PHOTO_CONTROL_UUID      | a1b20002-7c4d-4e2a-9f1b-1234567890ab     |
-| μ-law Audio      | AUDIO_CODEC_ULAW_UUID   | a1b20003-7c4d-4e2a-9f1b-1234567890ab     |
+| Photo Data       | PHOTO_DATA_UUID         | 19B10005-E8F2-537E-4F6C-D104768A1214     |
+| Photo Control    | PHOTO_CONTROL_UUID      | 19B10006-E8F2-537E-4F6C-D104768A1214     |
+| μ-law Audio      | AUDIO_CODEC_ULAW_UUID   | 19B10001-E8F2-537E-4F6C-D104768A1214     |
 
 
 ## File Map

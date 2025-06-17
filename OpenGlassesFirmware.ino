@@ -47,8 +47,9 @@ void loop()
 
     if (g_is_ble_connected)
     {
-        // Only handle photo streaming and battery updates here
-        process_photo_capture_and_upload(current_time_ms);
+        // Photo streaming is handled by its dedicated FreeRTOS task (photo_streaming_task)
+
+        // Handle battery updates
         if (current_time_ms - g_last_battery_update_ms >= BATTERY_UPDATE_INTERVAL_MS) {
             update_battery_level();
         }

@@ -103,13 +103,13 @@ void configure_ble()
     // Device Information Service
     BLEService *device_info_service = server->createService(DEVICE_INFORMATION_SERVICE_UUID);
     BLECharacteristic *manufacturer = device_info_service->createCharacteristic(MANUFACTURER_NAME_STRING_CHAR_UUID, BLECharacteristic::PROPERTY_READ);
-    manufacturer->setValue("Based Hardware");
+    manufacturer->setValue(DEVICE_MANUFACTURER_NAME);
     BLECharacteristic *model = device_info_service->createCharacteristic(MODEL_NUMBER_STRING_CHAR_UUID, BLECharacteristic::PROPERTY_READ);
-    model->setValue("OpenGlass");
+    model->setValue(DEVICE_MODEL_NUMBER);
     BLECharacteristic *firmware = device_info_service->createCharacteristic(FIRMWARE_REVISION_STRING_CHAR_UUID, BLECharacteristic::PROPERTY_READ);
-    firmware->setValue("1.0.2"); // Example version
+    firmware->setValue(DEVICE_FIRMWARE_REVISION);
     BLECharacteristic *hardware = device_info_service->createCharacteristic(HARDWARE_REVISION_STRING_CHAR_UUID, BLECharacteristic::PROPERTY_READ);
-    hardware->setValue("Seeed Xiao ESP32S3 Sense");
+    hardware->setValue(DEVICE_HARDWARE_REVISION);
 
     // Battery Service
     BLEService *battery_service = server->createService(BATTERY_SERVICE_UUID);

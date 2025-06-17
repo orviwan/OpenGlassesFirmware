@@ -2,7 +2,7 @@
 
 ## Features
 - BLE Device Name: **OpenGlass**
-- Main BLE Service UUID (advertised): `a1b20000-7c4d-4e2a-9f1b-1234567890ab`
+- Main BLE Service UUID (advertised): `19B10000-E8F2-537E-4F6C-D104768A1214`
 - BLE photo streaming (single-shot and interval)
 - BLE audio streaming: μ-law (G.711)
 - Only μ-law audio streaming is supported
@@ -14,9 +14,9 @@
 ## BLE Characteristics (UUIDs)
 | Feature         | Characteristic Name      | UUID                                    |
 |----------------|-------------------------|------------------------------------------|
-| Photo Data     | PHOTO_DATA_UUID         | a1b20001-7c4d-4e2a-9f1b-1234567890ab     |
-| Photo Control  | PHOTO_CONTROL_UUID      | a1b20002-7c4d-4e2a-9f1b-1234567890ab     |
-| μ-law Audio    | AUDIO_CODEC_ULAW_UUID   | a1b20003-7c4d-4e2a-9f1b-1234567890ab     |
+| Photo Data     | PHOTO_DATA_UUID         | 19B10005-E8F2-537E-4F6C-D104768A1214     |
+| Photo Control  | PHOTO_CONTROL_UUID      | 19B10006-E8F2-537E-4F6C-D104768A1214     |
+| μ-law Audio    | AUDIO_CODEC_ULAW_UUID   | 19B10001-E8F2-537E-4F6C-D104768A1214     |
 
 ## How to Use
 - Subscribe to the desired audio characteristic (μ-law) for streaming.
@@ -31,7 +31,7 @@ To receive μ-law (G.711) audio from the OpenGlass device over BLE:
 1. Connect to the device using BLE and discover its characteristics.
 2. Locate the μ-law Audio Characteristic:
    - **Name:** AUDIO_CODEC_ULAW_UUID
-   - **UUID:** a1b20003-7c4d-4e2a-9f1b-1234567890ab
+   - **UUID:** 19B10001-E8F2-537E-4F6C-D104768A1214
 3. Subscribe to notifications on this characteristic.
 4. Each notification will contain a frame of G.711 μ-law encoded audio (one byte per sample, 8kHz sample rate).
 5. On the client side, decode the μ-law data to PCM using a G.711 μ-law decoder (available in most audio libraries, e.g., WebAudio, Python, ffmpeg, etc.).
@@ -54,14 +54,14 @@ pcm_data = audioop.ulaw2lin(ulaw_data, 2)  # 2 bytes/sample for 16-bit PCM
 - Device advertises when no client is connected.
 
 ## Client Instructions
-- Connect to the BLE device named "OpenGlass". Alternatively, scan for devices advertising the Main BLE Service UUID (`a1b20000-7c4d-4e2a-9f1b-1234567890ab`) for discovery.
+- Connect to the BLE device named "OpenGlass". Alternatively, scan for devices advertising the Main BLE Service UUID (`19B10000-E8F2-537E-4F6C-D104768A1214`) for discovery.
 - Subscribe to the μ-law Audio Characteristic for G.711 μ-law audio (decoder required)
 - Subscribe to the Photo Data Characteristic for photo streaming
 - Use the Photo Control Characteristic to trigger single-shot or interval photos
 
 ### Detailed Photo Streaming Instructions
 
-**1. Photo Control (`PHOTO_CONTROL_UUID`: `a1b20002-7c4d-4e2a-9f1b-1234567890ab`) - Client Writes**
+**1. Photo Control (`PHOTO_CONTROL_UUID`: `19B10006-E8F2-537E-4F6C-D104768A1214`) - Client Writes**
 
 To control photo capture, your client application should write a single byte to this characteristic:
 
@@ -73,7 +73,7 @@ To control photo capture, your client application should write a single byte to 
     *   The device will capture photos at the specified interval (e.g., a value of `10` means every 10 seconds).
     *   The firmware enforces a minimum interval of 5 seconds.
 
-**2. Photo Data (`PHOTO_DATA_UUID`: `a1b20001-7c4d-4e2a-9f1b-1234567890ab`) - Device Sends Notifications**
+**2. Photo Data (`PHOTO_DATA_UUID`: `19B10005-E8F2-537E-4F6C-D104768A1214`) - Device Sends Notifications**
 
 Once photo capture is triggered, the device sends the JPEG image data in chunks via BLE notifications. Your client should:
 

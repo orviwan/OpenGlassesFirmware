@@ -30,10 +30,18 @@ const uint16_t BATTERY_SERVICE_UUID = 0x180F;
 const uint16_t BATTERY_LEVEL_CHAR_UUID = 0x2A19;
 
 // Main Custom Service (OpenGlass Service)
-static BLEUUID SERVICE_UUID("a1b20000-7c4d-4e2a-9f1b-1234567890ab");
-static BLEUUID PHOTO_DATA_UUID("a1b20001-7c4d-4e2a-9f1b-1234567890ab");
-static BLEUUID PHOTO_CONTROL_UUID("a1b20002-7c4d-4e2a-9f1b-1234567890ab");
-static BLEUUID AUDIO_CODEC_ULAW_UUID("a1b20003-7c4d-4e2a-9f1b-1234567890ab");
+static BLEUUID SERVICE_UUID("19B10000-E8F2-537E-4F6C-D104768A1214");
+static BLEUUID PHOTO_DATA_UUID("19B10005-E8F2-537E-4F6C-D104768A1214");
+static BLEUUID PHOTO_CONTROL_UUID("19B10006-E8F2-537E-4F6C-D104768A1214");
+static BLEUUID AUDIO_CODEC_ULAW_UUID("19B10001-E8F2-537E-4F6C-D104768A1214");
+
+// ---------------------------------------------------------------------------------
+// Device Information Strings
+// ---------------------------------------------------------------------------------
+constexpr const char* DEVICE_MANUFACTURER_NAME = "Based Hardware";
+constexpr const char* DEVICE_MODEL_NUMBER = "OpenGlass";
+constexpr const char* DEVICE_FIRMWARE_REVISION = "1.0.3"; // Updated version
+constexpr const char* DEVICE_HARDWARE_REVISION = "Seeed Xiao ESP32S3 Sense";
 
 // ---------------------------------------------------------------------------------
 // Photo Chunking
