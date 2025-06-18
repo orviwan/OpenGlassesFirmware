@@ -64,6 +64,9 @@ The onboard RGB LED provides at-a-glance status information:
 - **Blinking Red**: A photo has just been captured. The LED will blink once and then return to its previous state (Green or Blue).
 - **Solid Orange**: The device is disconnected and advertising, ready for a new connection.
 
+## Robustness
+- **Thread-Safe Logging**: All serial output is routed through a custom logger (`logger.cpp`) that uses a FreeRTOS mutex. This prevents interleaved or corrupted log messages that can occur when multiple tasks write to the serial port concurrently.
+
 ### Photo Control (`PHOTO_CONTROL_UUID`: `19B10006-E8F2-537E-4F6C-D104768A1214`) - Write
 Client writes a single byte to control photo capture:
 - `-1` (or `0xFF`): Trigger a single photo.
@@ -91,6 +94,8 @@ Device sends JPEG image data in chunks via notifications:
 
 
 ## File Map
+- `src/logger.cpp` – Thread-safe logging utility
+- `src/led_handler.cpp` – Onboard RGB LED status indicator control
 - `src/ble_handler.cpp` – BLE setup, task creation, connection logic
 - `src/audio_handler.cpp` – Mic setup, buffer
 - `src/audio_ulaw.cpp` – μ-law streaming logic

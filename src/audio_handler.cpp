@@ -1,5 +1,6 @@
 #include "audio_handler.h"
 #include "config.h"
+#include "logger.h"
 #include <Arduino.h>
 #include "driver/i2s.h"
 
@@ -17,7 +18,7 @@ uint16_t g_audio_frame_count = 0;
 
 void configure_microphone()
 {
-    Serial.println(" ");
+    logger_printf("\n");
     // I2S config for PDM mic (mono, 8kHz, 16-bit)
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
@@ -42,29 +43,15 @@ void configure_microphone()
     i2s_driver_uninstall(I2S_PORT);
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     if (err != ESP_OK) {
-        Serial.printf("[AUDIO] ERROR: Failed to install I2S driver! Code: %d\n", err);
-        while (1);
+        logger_printf("[MIC] ERROR: Failed to install I2S driver! Code: 0x%x\n", err);
+        return;
     }
     err = i2s_set_pin(I2S_PORT, &pin_config);
     if (err != ESP_OK) {
-        Serial.printf("[AUDIO] ERROR: Failed to set I2S pins! Code: %d\n", err);
-        while (1);
+        logger_printf("[MIC] ERROR: Failed to set I2S pins! Code: 0x%x\n", err);
+        return;
     }
-    Serial.printf("[MEM] Free PSRAM before I2S recording buffer alloc: %u bytes\n", ESP.getFreePsram());
-    s_i2s_recording_buffer = (uint8_t *)ps_calloc(i2s_recording_buffer_size, sizeof(uint8_t));
-    if (!s_i2s_recording_buffer)
-    {
-        Serial.println("[MEM] ERROR: Failed to allocate I2S recording buffer! Halting.");
-        while (1);
-    }
-    Serial.printf("[MEM] Free PSRAM before audio packet buffer alloc: %u bytes\n", ESP.getFreePsram());
-    s_audio_packet_buffer = (uint8_t *)ps_calloc(audio_packet_buffer_size, sizeof(uint8_t));
-    if (!s_audio_packet_buffer)
-    {
-        Serial.println("[MEM] ERROR: Failed to allocate audio packet buffer! Halting.");
-        while (1);
-    }
-    Serial.println("[AUDIO] Microphone configured and buffers allocated (ESP-IDF I2S).");
+    logger_printf("[MIC] I2S driver and pins configured successfully.\n");
 }
 
 size_t read_microphone_data(uint8_t *buffer, size_t buffer_size)
@@ -80,18 +67,18 @@ void deinit_microphone() {
     if (s_i2s_recording_buffer) {
         free(s_i2s_recording_buffer);
         s_i2s_recording_buffer = nullptr;
-        Serial.println("[MEM] I2S recording buffer freed.");
+        logger_printf("[MEM] I2S recording buffer freed.\n");
     }
     if (s_audio_packet_buffer) {
         free(s_audio_packet_buffer);
         s_audio_packet_buffer = nullptr;
-        Serial.println("[MEM] Audio packet buffer freed.");
+        logger_printf("[MEM] Audio packet buffer freed.\n");
     }
 
     esp_err_t err = i2s_driver_uninstall(I2S_PORT);
-    if (err == ESP_OK) {
-        Serial.println("[AUDIO] I2S driver uninstalled successfully.");
+    if (err != ESP_OK) {
+        logger_printf("[MIC] ERROR: Failed to uninstall I2S driver! Code: 0x%x\n", err);
     } else {
-        Serial.printf("[AUDIO] ERROR: Failed to uninstall I2S driver! Code: %d\n", err);
+        logger_printf("[MIC] I2S driver uninstalled successfully.\n");
     }
 }

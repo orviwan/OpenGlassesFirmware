@@ -11,6 +11,7 @@
 #include "src/photo_manager.h"  // For photo capture logic and uploading
 #include "src/battery_handler.h"// For battery level monitoring
 #include "src/led_handler.h"      // For onboard LED control
+#include "src/logger.h"         // For thread-safe logging
 
 /**
  * @brief Arduino setup function. Initializes hardware and software components.
@@ -18,16 +19,17 @@
 void setup()
 {
     Serial.begin(921600);
-    Serial.println(" ");
+    init_logger(); // Must be called after Serial.begin()
+    logger_printf(" \n");
     if (!psramFound()) {
-        Serial.println("[PSRAM] ERROR: PSRAM not found! Halting early.");
+        logger_printf("[PSRAM] ERROR: PSRAM not found! Halting early.\n");
         while(1);
     } else {
-        Serial.printf("[PSRAM] Total PSRAM: %u bytes\n", ESP.getPsramSize());
-        Serial.printf("[PSRAM] Free PSRAM before any custom allocations: %u bytes\n", ESP.getFreePsram());
+        logger_printf("[PSRAM] Total PSRAM: %u bytes\n", ESP.getPsramSize());
+        logger_printf("[PSRAM] Free PSRAM before any custom allocations: %u bytes\n", ESP.getFreePsram());
     }
 
-    Serial.println("[SETUP] System starting...");
+    logger_printf("[SETUP] System starting...\n");
 
     // Configure and enable power management by default for optimal battery life.
     // This includes Dynamic Frequency Scaling (DFS) and automatic light sleep.
@@ -37,7 +39,7 @@ void setup()
         .light_sleep_enable = true // Enable automatic light sleep
     };
     esp_pm_configure(&pm_config);
-    Serial.println("[POWER] Dynamic Frequency Scaling and Light Sleep enabled.");
+    logger_printf("[POWER] Dynamic Frequency Scaling and Light Sleep enabled.\n");
 
     // Initialize modules
     initialize_led();
@@ -49,7 +51,7 @@ void setup()
     // Set initial battery level after BLE characteristic is available
     update_battery_level(); 
     
-    Serial.println("[SETUP] Complete. Entering main loop.");
+    logger_printf("[SETUP] Complete. Entering main loop.\n");
 }
 
 /**

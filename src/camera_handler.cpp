@@ -1,13 +1,15 @@
 #include <Arduino.h> // For Serial
 #include "camera_handler.h"
-#include "camera_pins.h" // Ensure pins are included for config
+#include "camera_pins.h"
+#include "logger.h"
+#include <esp_camera.h>
 
 // Definition of the global frame buffer pointer
 camera_fb_t *fb = nullptr;
 
 void configure_camera() {
-    Serial.println(" ");
-    Serial.println("[CAM] Initializing...");
+    logger_printf("\n");
+    logger_printf("[CAM] Initializing...\n");
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
@@ -40,29 +42,30 @@ void configure_camera() {
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("[CAM] ERROR: Initialization failed with error 0x%x. Halting.\n", err);
-        while(1);
-    } else {
-        Serial.println("[CAM] Initialized successfully.");
+        logger_printf("[CAM] ERROR: Failed to initialize camera! Code: 0x%x\n", err);
+        return;
     }
+    logger_printf("[CAM] Camera initialized successfully.\n");
+
+    // Get a reference to the sensor
 }
 
 bool take_photo() {
     release_photo_buffer(); // Ensure previous buffer is released
 
-    // Serial.println("[CAM] Capturing photo...");
+    // logger_printf("[CAM] Capturing photo...");
     fb = esp_camera_fb_get();
     if (!fb) {
-        Serial.println("[CAM] ERROR: Failed to get frame buffer!");
+        logger_printf("[CAM] ERROR: Failed to get frame buffer!\n");
         return false;
     }
-    Serial.printf("[CAM] Photo captured: %zu bytes.\n", fb->len);
+    logger_printf("[CAM] Photo captured: %zu bytes.\n", fb->len);
     return true;
 }
 
 void release_photo_buffer() {
     if (fb) {
-        Serial.println("[CAM] Releasing previous frame buffer.");
+        logger_printf("[CAM] Releasing previous frame buffer.\n");
         esp_camera_fb_return(fb);
         fb = nullptr;
     }
@@ -72,8 +75,8 @@ void deinit_camera() {
     release_photo_buffer(); // Ensure buffer is released
     esp_err_t err = esp_camera_deinit();
     if (err == ESP_OK) {
-        Serial.println("[CAM] Deinitialized successfully.");
+        logger_printf("[CAM] Deinitialized successfully.\n");
     } else {
-        Serial.printf("[CAM] ERROR: Failed to deinitialize camera! Code: 0x%x\n", err);
+        logger_printf("[CAM] ERROR: Failed to deinitialize camera! Code: 0x%x\n", err);
     }
 }

@@ -15,7 +15,7 @@ void initialize_logger() {
     }
 }
 
-void log_printf(const char *format, ...) {
+void logger_printf(const char *format, ...) {
     if (s_log_mutex == NULL) return; // Not initialized
 
     // Attempt to take the mutex

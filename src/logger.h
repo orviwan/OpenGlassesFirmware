@@ -1,8 +1,9 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <stdarg.h>
+#include <Arduino.h>
 
-void log_printf(const char *format, ...);
+void init_logger();
+void logger_printf(const char * format, ...);
 
 #endif // LOGGER_H

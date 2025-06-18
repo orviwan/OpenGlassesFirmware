@@ -5,7 +5,8 @@
 #include "camera_handler.h" // For configure_camera, deinit_camera
 #include "audio_ulaw.h" // For μ-law streaming support
 #include "led_handler.h"    // For LED status indicators
-#include <Arduino.h> // For Serial
+#include "logger.h"         // For thread-safe logging
+#include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLE2902.h> // For BLE2902 descriptor
 #include <freertos/FreeRTOS.h>
@@ -26,29 +27,29 @@ static TaskHandle_t ulaw_streaming_task_handle = nullptr;
 void ServerHandler::onConnect(BLEServer *server)
 {
     g_is_ble_connected = true;
-    Serial.println("[BLE] Client connected.");
-    set_led_state_connected(); // Set LED to green
+    logger_printf("[BLE] Client connected.\n");
+    set_led_status(LED_STATUS_CONNECTED); // Set LED to green
     // Initialize peripherals on connect
-    Serial.println("[PERIPH] Initializing camera and microphone...");
+    logger_printf("[PERIPH] Initializing camera and microphone...\n");
     configure_camera();
     configure_microphone();
-    Serial.println("[PERIPH] Camera and microphone initialized.");
+    logger_printf("[PERIPH] Camera and microphone initialized.\n");
 }
 
 void ServerHandler::onDisconnect(BLEServer *server)
 {
     g_is_ble_connected = false;
-    Serial.println("[BLE] Client disconnected. Restarting advertising.");
-    set_led_state_disconnected(); // Set LED to orange
+    logger_printf("[BLE] Client disconnected. Restarting advertising.\n");
+    set_led_status(LED_STATUS_DISCONNECTED); // Set LED to orange
 
     // Reset the photo manager state to stop any ongoing processes
     reset_photo_manager_state();
 
     // De-initialize peripherals on disconnect
-    Serial.println("[PERIPH] De-initializing camera and microphone...");
+    logger_printf("[PERIPH] De-initializing camera and microphone...\n");
     deinit_camera();
     deinit_microphone();
-    Serial.println("[PERIPH] Camera and microphone de-initialized.");
+    logger_printf("[PERIPH] Camera and microphone de-initialized.\n");
     BLEDevice::startAdvertising(); // Restart advertising
 }
 
@@ -56,29 +57,29 @@ void ServerHandler::onDisconnect(BLEServer *server)
 void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
 {
     size_t len = characteristic->getLength();
-    Serial.printf("[BLE] PhotoControl received %zu bytes of data.\n", len);
+    logger_printf("[BLE] PhotoControl received %zu bytes of data.\n", len);
     if (len == 1)
     {
         int8_t received_value = characteristic->getData()[0];
-        Serial.printf("[BLE] PhotoControl single byte value: %d\n", received_value);
+        logger_printf("[BLE] PhotoControl single byte value: %d\n", received_value);
         handle_photo_control(received_value); // Call function from photo_manager
     } else if (len > 0) {
-        Serial.print("[BLE] PhotoControl received data (HEX): ");
+        logger_printf("[BLE] PhotoControl received data (HEX): ");
         uint8_t* data = characteristic->getData();
         for (size_t i = 0; i < len; i++) {
-            Serial.printf("%02X ", data[i]);
+            logger_printf("%02X ", data[i]);
         }
-        Serial.println();
-        Serial.println("[BLE] PhotoControl expected a single byte. Command ignored.");
+        logger_printf("\n");
+        logger_printf("[BLE] PhotoControl expected a single byte. Command ignored.\n");
     } else {
-        Serial.println("[BLE] PhotoControl received empty data. Command ignored.");
+        logger_printf("[BLE] PhotoControl received empty data. Command ignored.\n");
     }
 }
 
 void configure_ble()
 {
-    Serial.println(" ");
-    Serial.println("[BLE] Initializing...");
+    logger_printf("\n");
+    logger_printf("[BLE] Initializing...\n");
     BLEDevice::init(DEVICE_MODEL_NUMBER); // Device name
     BLEDevice::setMTU(247); // Increase MTU for higher throughput
     BLEServer *server = BLEDevice::createServer();
@@ -159,7 +160,7 @@ void configure_ble()
     // advertising->setMaxPreferred(0x12); // 25ms - More power hungry
     BLEDevice::startAdvertising();
 
-    Serial.println("[BLE] Initialized and advertising started.");
+    logger_printf("[BLE] Initialized and advertising started.\n");
 }
 
 void photo_streaming_task(void *pvParameters) {
@@ -170,7 +171,7 @@ void photo_streaming_task(void *pvParameters) {
             // Log status less frequently to avoid spamming, e.g., only on change or periodically
             static bool last_notifications_enabled_status = false;
             if (notifications_enabled != last_notifications_enabled_status) {
-                Serial.printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
+                logger_printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
                 last_notifications_enabled_status = notifications_enabled;
             }
 
@@ -202,14 +203,14 @@ void ulaw_streaming_task(void *pvParameters) {
         if (g_is_ble_connected && g_audio_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
             if (desc && desc->getNotifications()) {
-                set_led_state_audio(true); // Set LED to blue
+                set_led_status(LED_STATUS_AUDIO_STREAMING); // Set LED to blue
                 process_and_send_ulaw_audio(g_audio_data_characteristic);
             } else {
-                set_led_state_audio(false); // Revert LED state
+                set_led_status(LED_STATUS_CONNECTED); // Revert LED state
                 vTaskDelay(pdMS_TO_TICKS(50));
             }
         } else {
-            set_led_state_audio(false); // Revert LED state
+            set_led_status(LED_STATUS_CONNECTED); // Revert LED state
             vTaskDelay(pdMS_TO_TICKS(50));
         }
         vTaskDelay(pdMS_TO_TICKS(5));
