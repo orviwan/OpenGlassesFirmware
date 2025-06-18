@@ -39,8 +39,7 @@ void configure_microphone()
         .data_out_num = -1,                 // Not used (RX only)
         .data_in_num = I2S_MIC_SERIAL_DATA  // Serial data in
     };
-    // Uninstall any previous driver
-    i2s_driver_uninstall(I2S_PORT);
+
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     if (err != ESP_OK) {
         logger_printf("[MIC] ERROR: Failed to install I2S driver! Code: 0x%x\n", err);
