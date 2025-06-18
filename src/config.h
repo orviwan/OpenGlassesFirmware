@@ -68,6 +68,6 @@ constexpr unsigned long LOOP_DELAY_MS = 20;                 // Delay at the end 
 // ---------------------------------------------------------------------------------
 // Pin Definitions
 // ---------------------------------------------------------------------------------
-#define PIN_NEOPIXEL 4
+#define PIN_NEOPIXEL 2
 
 #endif // CONFIG_H
