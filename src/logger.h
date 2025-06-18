@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-void init_logger();
+void initialize_logger();
 void logger_printf(const char * format, ...);
 
 #endif // LOGGER_H

@@ -19,7 +19,7 @@
 void setup()
 {
     Serial.begin(921600);
-    init_logger(); // Must be called after Serial.begin()
+    initialize_logger(); // Must be called after Serial.begin()
     logger_printf(" \n");
     if (!psramFound()) {
         logger_printf("[PSRAM] ERROR: PSRAM not found! Halting early.\n");
