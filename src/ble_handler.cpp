@@ -4,6 +4,7 @@
 #include "audio_handler.h" // For configure_microphone, deinit_microphone
 #include "camera_handler.h" // For configure_camera, deinit_camera
 #include "audio_ulaw.h" // For μ-law streaming support
+#include "led_handler.h"    // For LED status indicators
 #include <Arduino.h> // For Serial
 #include <BLEDevice.h>
 #include <BLE2902.h> // For BLE2902 descriptor
@@ -26,6 +27,7 @@ void ServerHandler::onConnect(BLEServer *server)
 {
     g_is_ble_connected = true;
     Serial.println("[BLE] Client connected.");
+    set_led_state_connected(); // Set LED to green
     // Initialize peripherals on connect
     Serial.println("[PERIPH] Initializing camera and microphone...");
     configure_camera();
@@ -37,6 +39,7 @@ void ServerHandler::onDisconnect(BLEServer *server)
 {
     g_is_ble_connected = false;
     Serial.println("[BLE] Client disconnected. Restarting advertising.");
+    set_led_state_disconnected(); // Set LED to orange
 
     // Reset the photo manager state to stop any ongoing processes
     reset_photo_manager_state();
@@ -53,17 +56,17 @@ void ServerHandler::onDisconnect(BLEServer *server)
 void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
 {
     size_t len = characteristic->getLength();
-    Serial.printf("\r\n[BLE] PhotoControl received %zu bytes of data.\n", len);
+    Serial.printf("[BLE] PhotoControl received %zu bytes of data.\n", len);
     if (len == 1)
     {
         int8_t received_value = characteristic->getData()[0];
-        Serial.printf("\r\n[BLE] PhotoControl single byte value: %d\n", received_value);
+        Serial.printf("[BLE] PhotoControl single byte value: %d\n", received_value);
         handle_photo_control(received_value); // Call function from photo_manager
     } else if (len > 0) {
         Serial.print("[BLE] PhotoControl received data (HEX): ");
         uint8_t* data = characteristic->getData();
         for (size_t i = 0; i < len; i++) {
-            Serial.printf("\r\n%02X ", data[i]);
+            Serial.printf("%02X ", data[i]);
         }
         Serial.println();
         Serial.println("[BLE] PhotoControl expected a single byte. Command ignored.");
@@ -147,8 +150,13 @@ void configure_ble()
     advertising->addServiceUUID(DEVICE_INFORMATION_SERVICE_UUID);
     advertising->addServiceUUID(BATTERY_SERVICE_UUID);
     advertising->setScanResponse(true);
-    advertising->setMinPreferred(0x06); // 7.5ms
-    advertising->setMaxPreferred(0x12); // 25ms
+    // Set advertising interval for power efficiency
+    // Min: 100ms (0x64 * 0.625ms), Max: 200ms (0xC8 * 0.625ms)
+    // Slower advertising saves power when disconnected.
+    advertising->setMinInterval(0x64);
+    advertising->setMaxInterval(0xC8);
+    // advertising->setMinPreferred(0x06); // 7.5ms - More power hungry
+    // advertising->setMaxPreferred(0x12); // 25ms - More power hungry
     BLEDevice::startAdvertising();
 
     Serial.println("[BLE] Initialized and advertising started.");
@@ -162,7 +170,7 @@ void photo_streaming_task(void *pvParameters) {
             // Log status less frequently to avoid spamming, e.g., only on change or periodically
             static bool last_notifications_enabled_status = false;
             if (notifications_enabled != last_notifications_enabled_status) {
-                Serial.printf("\r\n[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
+                Serial.printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
                 last_notifications_enabled_status = notifications_enabled;
             }
 
@@ -194,11 +202,14 @@ void ulaw_streaming_task(void *pvParameters) {
         if (g_is_ble_connected && g_audio_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
             if (desc && desc->getNotifications()) {
+                set_led_state_audio(true); // Set LED to blue
                 process_and_send_ulaw_audio(g_audio_data_characteristic);
             } else {
+                set_led_state_audio(false); // Revert LED state
                 vTaskDelay(pdMS_TO_TICKS(50));
             }
         } else {
+            set_led_state_audio(false); // Revert LED state
             vTaskDelay(pdMS_TO_TICKS(50));
         }
         vTaskDelay(pdMS_TO_TICKS(5));

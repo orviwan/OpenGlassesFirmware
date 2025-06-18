@@ -1,6 +1,7 @@
 // Main sketch file for OpenGlass firmware
 
 #include <Arduino.h>
+#include <esp_pm.h>
 
 // Include all custom module headers
 #include "src/config.h"         // For global constants and configurations
@@ -9,6 +10,7 @@
 #include "src/camera_handler.h" // For camera operations
 #include "src/photo_manager.h"  // For photo capture logic and uploading
 #include "src/battery_handler.h"// For battery level monitoring
+#include "src/led_handler.h"      // For onboard LED control
 
 /**
  * @brief Arduino setup function. Initializes hardware and software components.
@@ -21,13 +23,24 @@ void setup()
         Serial.println("[PSRAM] ERROR: PSRAM not found! Halting early.");
         while(1);
     } else {
-        Serial.printf("\r\n[PSRAM] Total PSRAM: %u bytes\n", ESP.getPsramSize());
-        Serial.printf("\r\n[PSRAM] Free PSRAM before any custom allocations: %u bytes\n", ESP.getFreePsram());
+        Serial.printf("[PSRAM] Total PSRAM: %u bytes\n", ESP.getPsramSize());
+        Serial.printf("[PSRAM] Free PSRAM before any custom allocations: %u bytes\n", ESP.getFreePsram());
     }
 
     Serial.println("[SETUP] System starting...");
 
+    // Configure and enable power management by default for optimal battery life.
+    // This includes Dynamic Frequency Scaling (DFS) and automatic light sleep.
+    esp_pm_config_esp32_t pm_config = {
+        .max_freq_mhz = 240, // Maximum CPU frequency
+        .min_freq_mhz = 80,  // Minimum CPU frequency for power saving
+        .light_sleep_enable = true // Enable automatic light sleep
+    };
+    esp_pm_configure(&pm_config);
+    Serial.println("[POWER] Dynamic Frequency Scaling and Light Sleep enabled.");
+
     // Initialize modules
+    initialize_led();
     configure_ble();
     initialize_photo_manager(); // Initializes photo buffer and default interval
     initialize_battery_handler(g_battery_level_characteristic); // Pass the BLE characteristic
@@ -55,5 +68,9 @@ void loop()
             update_battery_level();
         }
     }
-    delay(LOOP_DELAY_MS); // Small delay to yield to other tasks
+    // When disconnected, the device just advertises.
+    // When connected, other tasks handle streaming.
+    // This non-blocking delay allows the idle task to run, which will trigger
+    // light sleep if enabled and conditions are met, saving power.
+    vTaskDelay(pdMS_TO_TICKS(LOOP_DELAY_MS));
 }

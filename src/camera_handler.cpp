@@ -40,7 +40,7 @@ void configure_camera() {
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("\r\n[CAM] ERROR: Initialization failed with error 0x%x. Halting.\n", err);
+        Serial.printf("[CAM] ERROR: Initialization failed with error 0x%x. Halting.\n", err);
         while(1);
     } else {
         Serial.println("[CAM] Initialized successfully.");
@@ -56,7 +56,7 @@ bool take_photo() {
         Serial.println("[CAM] ERROR: Failed to get frame buffer!");
         return false;
     }
-    Serial.printf("\r\n[CAM] Photo captured: %zu bytes.\n", fb->len);
+    Serial.printf("[CAM] Photo captured: %zu bytes.\n", fb->len);
     return true;
 }
 
@@ -74,6 +74,6 @@ void deinit_camera() {
     if (err == ESP_OK) {
         Serial.println("[CAM] Deinitialized successfully.");
     } else {
-        Serial.printf("\r\n[CAM] ERROR: Failed to deinitialize camera! Code: 0x%x\n", err);
+        Serial.printf("[CAM] ERROR: Failed to deinitialize camera! Code: 0x%x\n", err);
     }
 }
