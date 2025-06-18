@@ -20,7 +20,8 @@ bool g_single_shot_pending = false; // Flag for single photo request pending
 uint8_t *s_photo_chunk_buffer = nullptr;
 
 void initialize_photo_manager() {
-        Serial.printf("[MEM] Free PSRAM before photo chunk buffer alloc: %u bytes\n", ESP.getFreePsram());
+    Serial.println(" ");
+    Serial.printf("\r\n[MEM] Free PSRAM before photo chunk buffer alloc: %u bytes\n", ESP.getFreePsram());
     s_photo_chunk_buffer = (uint8_t *)ps_calloc(PHOTO_CHUNK_BUFFER_SIZE, sizeof(uint8_t));
     if (!s_photo_chunk_buffer) {
         Serial.println("[MEM] ERROR: Failed to allocate photo chunk buffer! Halting.");
@@ -37,7 +38,7 @@ void initialize_photo_manager() {
 }
 
 void handle_photo_control(int8_t control_value) {
-    Serial.printf("[PHOTO] handle_photo_control received: %d\n", control_value);
+    Serial.printf("\r\n[PHOTO] handle_photo_control received: %d\n", control_value);
     if (control_value == -1) {
         Serial.println("[PHOTO] Control: Single photo requested.");
         g_single_shot_pending = true;
@@ -48,7 +49,7 @@ void handle_photo_control(int8_t control_value) {
         g_single_shot_pending = false;
     } else if (control_value >= 5 && control_value <= 127) // Only allow intervals >= 5s
     {
-        Serial.printf("[PHOTO] Control: Interval capture requested. Interval: %d s.\n", control_value);
+        Serial.printf("\r\n[PHOTO] Control: Interval capture requested. Interval: %d s.\n", control_value);
         g_capture_interval_ms = (unsigned long)control_value * 1000;
         g_capture_mode = MODE_INTERVAL;
         // g_last_capture_time_ms = millis(); // Start timer from now, so first image is after interval
@@ -57,7 +58,7 @@ void handle_photo_control(int8_t control_value) {
         g_last_capture_time_ms = millis(); // Set last capture time to now to ensure the *next* interval photo is after the full interval
         Serial.println("[PHOTO] Interval mode set. First photo will be taken immediately.");
     } else {
-        Serial.printf("[PHOTO] Ignoring invalid or too-short interval: %d\n", control_value);
+        Serial.printf("\r\n[PHOTO] Ignoring invalid or too-short interval: %d\n", control_value);
     }
 }
 
@@ -98,7 +99,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
                     if (g_capture_mode == MODE_INTERVAL) {
                          g_last_capture_time_ms = current_time_ms; // Reset timer for the next interval
                     }
-                     Serial.printf("[PHOTO] Uploading image: %zu bytes\n", fb->len); // Simplified log
+                     Serial.printf("\r\n[PHOTO] Uploading image: %zu bytes\n", fb->len); // Simplified log
                 } else {
                     Serial.println("[PHOTO] take_photo succeeded but returned empty or invalid frame buffer.");
                     g_is_photo_uploading = false; // Ensure this is false if frame buffer is invalid
@@ -123,7 +124,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
 
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
-            Serial.printf("[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu\n", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
+            Serial.printf("\r\n[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu\n", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
             delay(10); // Add a 10ms delay to help client processing
 
             g_sent_photo_bytes += bytes_to_copy;
@@ -134,11 +135,12 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             s_photo_chunk_buffer[1] = 0xFF;
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
-            Serial.printf("[PHOTO][END] Sent end-of-photo marker. Total chunks: %u, Total bytes: %zu\n", g_sent_photo_frames, g_sent_photo_bytes);
+            Serial.printf("\r\n[PHOTO][END] Sent end-of-photo marker. Total chunks: %u, Total bytes: %zu\n", g_sent_photo_frames, g_sent_photo_bytes);
 
             // Calculate CRC32 of the JPEG buffer
             uint32_t crc = esp_rom_crc32_le(0, fb->buf, fb->len);
-            Serial.printf("[PHOTO][CRC32] Calculated CRC32: 0x%08lX\n", crc);
+            Serial.printf("\r\n[PHOTO][CRC32] Calculated CRC32: 0x%08lX\n", crc);
+            Serial.println(" ");
             // Send CRC32 as a special chunk: header 0xFE 0xFE, 4 bytes CRC32 (little-endian)
             s_photo_chunk_buffer[0] = 0xFE;
             s_photo_chunk_buffer[1] = 0xFE;
@@ -154,4 +156,19 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             release_photo_buffer(); // release_photo_buffer is from camera_handler.h
         }
     }
+}
+
+void reset_photo_manager_state() {
+    Serial.println("[PHOTO] Resetting photo manager state.");
+    g_capture_mode = MODE_STOP;
+    g_capture_interval_ms = 0;
+    g_last_capture_time_ms = 0;
+    g_sent_photo_bytes = 0;
+    g_sent_photo_frames = 0;
+    g_is_photo_uploading = false;
+    g_is_processing_capture_request = false;
+    g_single_shot_pending = false;
+
+    // Also release any held camera frame buffer
+    release_photo_buffer();
 }

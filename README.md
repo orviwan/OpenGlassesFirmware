@@ -24,6 +24,15 @@
 - All streaming is handled by FreeRTOS tasks for maximum efficiency.
 - **Audio and photo streaming can run simultaneously, but BLE bandwidth is shared. For best reliability, avoid high-frequency photo capture during audio streaming.**
 
+## Connection Handling
+The firmware is designed to be resilient to unexpected client disconnections. If the BLE connection is lost for any reason, the device will automatically:
+1.  Stop all ongoing photo and audio streaming.
+2.  Reset the state of the photo manager to prevent inconsistent behavior.
+3.  De-initialize the camera and microphone to conserve power.
+4.  Restart BLE advertising, making it available for a new connection.
+
+This ensures that the device returns to a clean and predictable state, ready for the next client connection.
+
 ## How to Use μ-law (G.711) Audio Streaming
 
 To receive μ-law (G.711) audio from the OpenGlass device over BLE:

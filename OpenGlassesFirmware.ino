@@ -16,12 +16,13 @@
 void setup()
 {
     Serial.begin(921600);
+    Serial.println(" ");
     if (!psramFound()) {
         Serial.println("[PSRAM] ERROR: PSRAM not found! Halting early.");
         while(1);
     } else {
-        Serial.printf("[PSRAM] Total PSRAM: %u bytes\n", ESP.getPsramSize());
-        Serial.printf("[PSRAM] Free PSRAM before any custom allocations: %u bytes\n", ESP.getFreePsram());
+        Serial.printf("\r\n[PSRAM] Total PSRAM: %u bytes\n", ESP.getPsramSize());
+        Serial.printf("\r\n[PSRAM] Free PSRAM before any custom allocations: %u bytes\n", ESP.getFreePsram());
     }
 
     Serial.println("[SETUP] System starting...");

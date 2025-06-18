@@ -37,6 +37,10 @@ void ServerHandler::onDisconnect(BLEServer *server)
 {
     g_is_ble_connected = false;
     Serial.println("[BLE] Client disconnected. Restarting advertising.");
+
+    // Reset the photo manager state to stop any ongoing processes
+    reset_photo_manager_state();
+
     // De-initialize peripherals on disconnect
     Serial.println("[PERIPH] De-initializing camera and microphone...");
     deinit_camera();
@@ -49,17 +53,17 @@ void ServerHandler::onDisconnect(BLEServer *server)
 void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
 {
     size_t len = characteristic->getLength();
-    Serial.printf("[BLE] PhotoControl received %zu bytes of data.\n", len);
+    Serial.printf("\r\n[BLE] PhotoControl received %zu bytes of data.\n", len);
     if (len == 1)
     {
         int8_t received_value = characteristic->getData()[0];
-        Serial.printf("[BLE] PhotoControl single byte value: %d\n", received_value);
+        Serial.printf("\r\n[BLE] PhotoControl single byte value: %d\n", received_value);
         handle_photo_control(received_value); // Call function from photo_manager
     } else if (len > 0) {
         Serial.print("[BLE] PhotoControl received data (HEX): ");
         uint8_t* data = characteristic->getData();
         for (size_t i = 0; i < len; i++) {
-            Serial.printf("%02X ", data[i]);
+            Serial.printf("\r\n%02X ", data[i]);
         }
         Serial.println();
         Serial.println("[BLE] PhotoControl expected a single byte. Command ignored.");
@@ -70,8 +74,9 @@ void PhotoControlCallback::onWrite(BLECharacteristic *characteristic)
 
 void configure_ble()
 {
+    Serial.println(" ");
     Serial.println("[BLE] Initializing...");
-    BLEDevice::init("OpenGlass"); // Device name
+    BLEDevice::init(DEVICE_MODEL_NUMBER); // Device name
     BLEDevice::setMTU(247); // Increase MTU for higher throughput
     BLEServer *server = BLEDevice::createServer();
     server->setCallbacks(new ServerHandler());
@@ -157,7 +162,7 @@ void photo_streaming_task(void *pvParameters) {
             // Log status less frequently to avoid spamming, e.g., only on change or periodically
             static bool last_notifications_enabled_status = false;
             if (notifications_enabled != last_notifications_enabled_status) {
-                Serial.printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
+                Serial.printf("\r\n[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
                 last_notifications_enabled_status = notifications_enabled;
             }
 

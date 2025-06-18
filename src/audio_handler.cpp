@@ -17,6 +17,7 @@ uint16_t g_audio_frame_count = 0;
 
 void configure_microphone()
 {
+    Serial.println(" ");
     // I2S config for PDM mic (mono, 8kHz, 16-bit)
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
@@ -41,22 +42,22 @@ void configure_microphone()
     i2s_driver_uninstall(I2S_PORT);
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     if (err != ESP_OK) {
-        Serial.printf("[AUDIO] ERROR: Failed to install I2S driver! Code: %d\n", err);
+        Serial.printf("\r\n[AUDIO] ERROR: Failed to install I2S driver! Code: %d\n", err);
         while (1);
     }
     err = i2s_set_pin(I2S_PORT, &pin_config);
     if (err != ESP_OK) {
-        Serial.printf("[AUDIO] ERROR: Failed to set I2S pins! Code: %d\n", err);
+        Serial.printf("\r\n[AUDIO] ERROR: Failed to set I2S pins! Code: %d\n", err);
         while (1);
     }
-    Serial.printf("[MEM] Free PSRAM before I2S recording buffer alloc: %u bytes\n", ESP.getFreePsram());
+    Serial.printf("\r\n[MEM] Free PSRAM before I2S recording buffer alloc: %u bytes\n", ESP.getFreePsram());
     s_i2s_recording_buffer = (uint8_t *)ps_calloc(i2s_recording_buffer_size, sizeof(uint8_t));
     if (!s_i2s_recording_buffer)
     {
         Serial.println("[MEM] ERROR: Failed to allocate I2S recording buffer! Halting.");
         while (1);
     }
-    Serial.printf("[MEM] Free PSRAM before audio packet buffer alloc: %u bytes\n", ESP.getFreePsram());
+    Serial.printf("\r\n[MEM] Free PSRAM before audio packet buffer alloc: %u bytes\n", ESP.getFreePsram());
     s_audio_packet_buffer = (uint8_t *)ps_calloc(audio_packet_buffer_size, sizeof(uint8_t));
     if (!s_audio_packet_buffer)
     {
@@ -91,6 +92,6 @@ void deinit_microphone() {
     if (err == ESP_OK) {
         Serial.println("[AUDIO] I2S driver uninstalled successfully.");
     } else {
-        Serial.printf("[AUDIO] ERROR: Failed to uninstall I2S driver! Code: %d\n", err);
+        Serial.printf("\r\n[AUDIO] ERROR: Failed to uninstall I2S driver! Code: %d\n", err);
     }
 }

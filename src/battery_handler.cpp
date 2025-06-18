@@ -10,6 +10,7 @@ unsigned long g_last_battery_update_ms = 0;
 BLECharacteristic *g_battery_level_characteristic_ptr = nullptr; // Pointer to be set during BLE init
 
 void initialize_battery_handler(BLECharacteristic *ble_char) {
+    Serial.println(" ");
     g_battery_level_characteristic_ptr = ble_char;
     // Initialize g_last_battery_update_ms to ensure first update happens correctly
     g_last_battery_update_ms = millis(); 

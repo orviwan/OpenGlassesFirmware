@@ -29,6 +29,7 @@ extern uint8_t *s_photo_chunk_buffer;
 void initialize_photo_manager();
 void handle_photo_control(int8_t control_value);
 void process_photo_capture_and_upload(unsigned long current_time_ms);
+void reset_photo_manager_state();
 
 
 #endif // PHOTO_MANAGER_H

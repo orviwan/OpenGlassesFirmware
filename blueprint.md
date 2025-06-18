@@ -38,6 +38,15 @@
 - **Audio and photo can be streamed at the same time, but BLE bandwidth is shared.**
 - μ-law stream requires G.711 μ-law decoder on client
 
+## Connection Handling
+The firmware is designed to be resilient to unexpected client disconnections. If the BLE connection is lost for any reason, the device will automatically:
+1.  Stop all ongoing photo and audio streaming.
+2.  Reset the state of the photo manager to prevent inconsistent behavior.
+3.  De-initialize the camera and microphone to conserve power.
+4.  Restart BLE advertising, making it available for a new connection.
+
+This ensures that the device returns to a clean and predictable state, ready for the next client connection.
+
 ### Photo Control (`PHOTO_CONTROL_UUID`: `19B10006-E8F2-537E-4F6C-D104768A1214`) - Write
 Client writes a single byte to control photo capture:
 - `-1` (or `0xFF`): Trigger a single photo.
