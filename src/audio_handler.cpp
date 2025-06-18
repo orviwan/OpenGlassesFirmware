@@ -11,6 +11,8 @@ uint8_t *s_i2s_recording_buffer = nullptr;
 uint8_t *s_audio_packet_buffer = nullptr;
 uint16_t g_audio_frame_count = 0;
 
+static bool i2s_driver_installed = false;
+
 // I2S port and pin config for ESP32-S3 (update pins as needed)
 #define I2S_PORT I2S_NUM_0
 #define I2S_MIC_SERIAL_CLOCK 42
@@ -43,7 +45,10 @@ void configure_microphone()
     esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     if (err != ESP_OK) {
         logger_printf("[MIC] ERROR: Failed to install I2S driver! Code: 0x%x\n", err);
+        i2s_driver_installed = false;
         return;
+    } else {
+        i2s_driver_installed = true;
     }
     err = i2s_set_pin(I2S_PORT, &pin_config);
     if (err != ESP_OK) {
@@ -74,10 +79,15 @@ void deinit_microphone() {
         logger_printf("[MEM] Audio packet buffer freed.\n");
     }
 
-    esp_err_t err = i2s_driver_uninstall(I2S_PORT);
-    if (err != ESP_OK) {
-        logger_printf("[MIC] ERROR: Failed to uninstall I2S driver! Code: 0x%x\n", err);
+    if (i2s_driver_installed) {
+        esp_err_t err = i2s_driver_uninstall(I2S_PORT);
+        if (err != ESP_OK) {
+            logger_printf("[MIC] ERROR: Failed to uninstall I2S driver! Code: 0x%x\n", err);
+        } else {
+            logger_printf("[MIC] I2S driver uninstalled successfully.\n");
+        }
+        i2s_driver_installed = false;
     } else {
-        logger_printf("[MIC] I2S driver uninstalled successfully.\n");
+        logger_printf("[MIC] I2S driver was not installed, skipping uninstall.\n");
     }
 }
