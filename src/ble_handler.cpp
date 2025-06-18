@@ -29,11 +29,7 @@ void ServerHandler::onConnect(BLEServer *server)
     g_is_ble_connected = true;
     logger_printf("[BLE] Client connected.\n");
     set_led_status(LED_STATUS_CONNECTED); // Set LED to green
-    // Initialize peripherals on connect
-    logger_printf("[PERIPH] Initializing camera and microphone...\n");
-    configure_camera();
-    configure_microphone();
-    logger_printf("[PERIPH] Camera and microphone initialized.\n");
+    // Do NOT initialize camera or microphone here
 }
 
 void ServerHandler::onDisconnect(BLEServer *server)
@@ -199,18 +195,31 @@ void start_photo_streaming_task() {
 }
 
 void ulaw_streaming_task(void *pvParameters) {
+    static bool mic_active = false;
     while (true) {
         if (g_is_ble_connected && g_audio_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
             if (desc && desc->getNotifications()) {
+                if (!mic_active) {
+                    configure_microphone();
+                    mic_active = true;
+                }
                 set_led_status(LED_STATUS_AUDIO_STREAMING); // Set LED to blue
                 process_and_send_ulaw_audio(g_audio_data_characteristic);
             } else {
+                if (mic_active) {
+                    deinit_microphone();
+                    mic_active = false;
+                }
                 set_led_status(LED_STATUS_CONNECTED); // Revert LED state
                 vTaskDelay(pdMS_TO_TICKS(50));
             }
         } else {
-            set_led_status(LED_STATUS_CONNECTED); // Revert LED state
+            if (mic_active) {
+                deinit_microphone();
+                mic_active = false;
+            }
+            set_led_status(LED_STATUS_DISCONNECTED); // Revert LED state
             vTaskDelay(pdMS_TO_TICKS(50));
         }
         vTaskDelay(pdMS_TO_TICKS(5));

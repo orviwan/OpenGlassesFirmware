@@ -93,14 +93,17 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             // Always release previous frame buffer before taking a new photo
             release_photo_buffer();
 
+            configure_camera(); // Only initialize camera when needed
             if (take_photo()) {
                 logger_printf("[PHOTO] Captured photo, starting upload...\n");
                 set_led_status(LED_STATUS_PHOTO_CAPTURING); // Blink LED red
                 start_photo_upload();
                 g_last_capture_time_ms = current_time_ms; // Update time after successful capture
+                deinit_camera(); // Deinitialize camera after photo
             } else {
                 logger_printf("[PHOTO] take_photo failed.\n");
                  g_is_photo_uploading = false; // Ensure this is false if take_photo failed
+                deinit_camera(); // Clean up even on failure
             }
             g_is_processing_capture_request = false; // Reset flag after capture attempt completes
         }
