@@ -19,6 +19,8 @@ bool g_is_photo_uploading = false;
 bool g_is_processing_capture_request = false; // Flag to indicate if a capture request is being processed
 bool g_single_shot_pending = false; // Flag for single photo request pending
 
+void start_photo_upload(); // Forward declaration
+
 uint8_t *s_photo_chunk_buffer = nullptr;
 
 void initialize_photo_manager() {
@@ -94,10 +96,10 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             if (take_photo()) {
                 logger_printf("[PHOTO] Captured photo, starting upload...\n");
                 set_led_status(LED_STATUS_PHOTO_CAPTURING); // Blink LED red
-                upload_photo_via_ble();
-                g_last_photo_capture_time_ms = current_time_ms; // Update time after successful capture
+                start_photo_upload();
+                g_last_capture_time_ms = current_time_ms; // Update time after successful capture
             } else {
-                logger_printf("[PHOTO] take_photo failed.");
+                logger_printf("[PHOTO] take_photo failed.\n");
                  g_is_photo_uploading = false; // Ensure this is false if take_photo failed
             }
             g_is_processing_capture_request = false; // Reset flag after capture attempt completes
@@ -162,4 +164,16 @@ void reset_photo_manager_state() {
 
     // Also release any held camera frame buffer
     release_photo_buffer();
+}
+
+void start_photo_upload() {
+    if (fb && fb->len > 0) {
+        g_is_photo_uploading = true;
+        g_sent_photo_bytes = 0;
+        g_sent_photo_frames = 0;
+        logger_printf("[PHOTO] Starting photo upload. Total size: %zu bytes\n", fb->len);
+    } else {
+        logger_printf("[PHOTO] ERROR: Cannot start upload, no valid photo buffer.\n");
+        g_is_photo_uploading = false;
+    }
 }

@@ -65,4 +65,9 @@ constexpr size_t PHOTO_CHUNK_BUFFER_SIZE = MAX_PHOTO_CHUNK_PAYLOAD_SIZE + PHOTO_
 constexpr unsigned long BATTERY_UPDATE_INTERVAL_MS = 60000; // 60 seconds
 constexpr unsigned long LOOP_DELAY_MS = 20;                 // Delay at the end of the main loop
 
+// ---------------------------------------------------------------------------------
+// Pin Definitions
+// ---------------------------------------------------------------------------------
+#define PIN_NEOPIXEL 4
+
 #endif // CONFIG_H
