@@ -91,23 +91,11 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             // Always release previous frame buffer before taking a new photo
             release_photo_buffer();
 
-            if (take_photo()) { // take_photo is from camera_handler.h
-                indicate_photo_capture(); // Blink LED red
-                // logger_printf("[PHOTO] take_photo succeeded."); // Commented to reduce log noise
-                if (fb && fb->len > 0) {
-                    g_is_photo_uploading = true;
-                    g_sent_photo_bytes = 0;
-                    g_sent_photo_frames = 0;
-                    // Update interval timer only on successful capture
-                    if (g_capture_mode == MODE_INTERVAL) {
-                         g_last_capture_time_ms = current_time_ms; // Reset timer for the next interval
-                    }
-                     logger_printf("[PHOTO] Uploading image: %zu bytes", fb->len); // Simplified log
-                } else {
-                    logger_printf("[PHOTO] take_photo succeeded but returned empty or invalid frame buffer.");
-                    g_is_photo_uploading = false; // Ensure this is false if frame buffer is invalid
-                    release_photo_buffer(); // Attempt to release the invalid buffer
-                }
+            if (take_photo()) {
+                logger_printf("[PHOTO] Captured photo, starting upload...\n");
+                set_led_status(LED_STATUS_PHOTO_CAPTURING); // Blink LED red
+                upload_photo_via_ble();
+                g_last_photo_capture_time_ms = current_time_ms; // Update time after successful capture
             } else {
                 logger_printf("[PHOTO] take_photo failed.");
                  g_is_photo_uploading = false; // Ensure this is false if take_photo failed
