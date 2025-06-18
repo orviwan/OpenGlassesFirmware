@@ -76,7 +76,9 @@ pcm_data = audioop.ulaw2lin(ulaw_data, 2)  # 2 bytes/sample for 16-bit PCM
 - BLE MTU set to 247 for high throughput
 - Connection interval set to 7.5ms–25ms
 - All streaming (audio/photo) is offloaded to FreeRTOS tasks
-- Camera and microphone are de-initialized when no client is connected to save power and reduce heat. They are re-initialized upon client connection.
+- Camera and microphone are de-initialized when no client is connected to save power and reduce heat. They are now only initialized when actually needed:
+    - The camera is initialized only when a photo is requested, and deinitialized immediately after.
+    - The microphone is initialized only when audio streaming is requested (when notifications are enabled), and deinitialized when streaming stops or the client disconnects.
 - Device advertises when no client is connected.
 
 ## Client Instructions

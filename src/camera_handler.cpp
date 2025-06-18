@@ -6,6 +6,7 @@
 
 // Definition of the global frame buffer pointer
 camera_fb_t *fb = nullptr;
+static bool camera_initialized = false;
 
 void configure_camera() {
     logger_printf("\n");
@@ -43,8 +44,10 @@ void configure_camera() {
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
         logger_printf("[CAM] ERROR: Failed to initialize camera! Code: 0x%x\n", err);
+        camera_initialized = false;
         return;
     }
+    camera_initialized = true;
     logger_printf("[CAM] Camera initialized successfully.\n");
 
     // Get a reference to the sensor
@@ -72,6 +75,10 @@ void release_photo_buffer() {
 }
 
 void deinit_camera() {
+    if (!camera_initialized) {
+        logger_printf("[CAM] Camera was not initialized, skipping deinit.\n");
+        return;
+    }
     release_photo_buffer(); // Ensure buffer is released
     esp_err_t err = esp_camera_deinit();
     if (err == ESP_OK) {
@@ -79,4 +86,5 @@ void deinit_camera() {
     } else {
         logger_printf("[CAM] ERROR: Failed to deinitialize camera! Code: 0x%x\n", err);
     }
+    camera_initialized = false;
 }

@@ -24,7 +24,9 @@ To compile this firmware, you will need to install the following library through
     - Fast connection interval (7.5–25ms)
 - **Idle Behavior:**
     - Camera and microphone are de-initialized when no client is connected to save power and reduce heat.
-    - Peripherals are re-initialized upon client connection.
+    - Peripherals are now only initialized when actually needed:
+        - Camera: initialized only when a photo is requested, deinitialized immediately after.
+        - Microphone: initialized only when audio streaming is requested (notifications enabled), deinitialized when streaming stops or client disconnects.
     - Device advertises when no client is connected.
 
 ## Streaming Logic
