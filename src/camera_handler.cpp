@@ -56,9 +56,8 @@ void configure_camera() {
 bool take_photo() {
     release_photo_buffer(); // Ensure previous buffer is released
 
-    // Camera warm-up: discard first 3 frames to allow AWB/gain to settle
-    const int warmup_frames = 3;
-    for (int i = 0; i < warmup_frames; ++i) {
+    // Camera warm-up: discard frames to allow AWB/gain to settle
+    for (int i = 0; i < CAMERA_WARMUP_FRAMES; ++i) {
         camera_fb_t *tmp_fb = esp_camera_fb_get();
         if (tmp_fb) {
             esp_camera_fb_return(tmp_fb);
