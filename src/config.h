@@ -30,10 +30,10 @@ const uint16_t BATTERY_SERVICE_UUID = 0x180F;
 const uint16_t BATTERY_LEVEL_CHAR_UUID = 0x2A19;
 
 // Main Custom Service (OpenGlass Service)
-static BLEUUID SERVICE_UUID("19B10000-E8F2-537E-4F6C-D104768A1214");
-static BLEUUID PHOTO_DATA_UUID("19B10005-E8F2-537E-4F6C-D104768A1214");
-static BLEUUID PHOTO_CONTROL_UUID("19B10006-E8F2-537E-4F6C-D104768A1214");
-static BLEUUID AUDIO_CODEC_ULAW_UUID("19B10001-E8F2-537E-4F6C-D104768A1214");
+static BLEUUID SERVICE_UUID("19b10000-e8f2-537e-4f6c-d104768a1214");
+static BLEUUID PHOTO_DATA_UUID("19b10005-e8f2-537e-4f6c-d104768a1214");
+static BLEUUID PHOTO_CONTROL_UUID("19b10006-e8f2-537e-4f6c-d104768a1214");
+static BLEUUID AUDIO_CODEC_ULAW_UUID("19b10001-e8f2-537e-4f6c-d104768a1214");
 
 // ---------------------------------------------------------------------------------
 // BLE Characteristic User Descriptions (UUID 0x2901)
@@ -68,6 +68,6 @@ constexpr unsigned long LOOP_DELAY_MS = 20;                 // Delay at the end 
 // ---------------------------------------------------------------------------------
 // Pin Definitions
 // ---------------------------------------------------------------------------------
-#define PIN_NEOPIXEL 48 //21
+#define PIN_NEOPIXEL 21
 
 #endif // CONFIG_H

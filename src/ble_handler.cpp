@@ -160,6 +160,7 @@ void configure_ble()
 }
 
 void photo_streaming_task(void *pvParameters) {
+    unsigned long last_log_time = 0;
     while (true) {
         if (g_is_ble_connected && g_photo_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_photo_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
@@ -170,14 +171,14 @@ void photo_streaming_task(void *pvParameters) {
                 logger_printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
                 last_notifications_enabled_status = notifications_enabled;
             }
-
+            unsigned long now = millis();
+            if (now - last_log_time > 5000) {
+                logger_printf("[PHOTO][DEBUG] Connected: %d, Notifications: %d, Uploading: %d, Mode: %d\n", g_is_ble_connected, notifications_enabled, g_is_photo_uploading, g_capture_mode);
+                last_log_time = now;
+            }
             if (notifications_enabled) {
                 process_photo_capture_and_upload(millis());
             } else {
-                // If notifications are not enabled, reset photo capture mode to stop
-                // This prevents the photo manager from trying to capture if client disconnects/disables notifications
-                // without sending a stop command.
-                // handle_photo_control(0); // 0 is stop command
                 vTaskDelay(pdMS_TO_TICKS(100));
             }
         } else {

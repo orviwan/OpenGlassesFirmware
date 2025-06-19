@@ -99,10 +99,10 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
                 set_led_status(LED_STATUS_PHOTO_CAPTURING); // Blink LED red
                 start_photo_upload();
                 g_last_capture_time_ms = current_time_ms; // Update time after successful capture
-                deinit_camera(); // Deinitialize camera after photo
+                // deinit_camera(); // Do NOT deinitialize camera here
             } else {
                 logger_printf("[PHOTO] take_photo failed.\n");
-                 g_is_photo_uploading = false; // Ensure this is false if take_photo failed
+                g_is_photo_uploading = false; // Ensure this is false if take_photo failed
                 deinit_camera(); // Clean up even on failure
             }
             g_is_processing_capture_request = false; // Reset flag after capture attempt completes
@@ -149,8 +149,25 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             logger_printf("[PHOTO][CRC32] Sent CRC32 chunk to client.");
 
             g_is_photo_uploading = false;
+            logger_printf("[PHOTO][UPLOAD] Upload complete, g_is_photo_uploading set to 0");
             release_photo_buffer(); // release_photo_buffer is from camera_handler.h
+            deinit_camera(); // Deinitialize camera only after upload is fully complete
         }
+    }
+
+    // Watchdog: if stuck uploading for >30s, reset state
+    static unsigned long upload_start_time = 0;
+    if (g_is_photo_uploading && upload_start_time == 0) {
+        upload_start_time = millis();
+    }
+    if (!g_is_photo_uploading) {
+        upload_start_time = 0;
+    }
+    if (g_is_photo_uploading && (millis() - upload_start_time > 30000)) {
+        logger_printf("[PHOTO][WATCHDOG] Upload stuck >30s, forcing reset\n");
+        g_is_photo_uploading = false;
+        upload_start_time = 0;
+        release_photo_buffer();
     }
 }
 
