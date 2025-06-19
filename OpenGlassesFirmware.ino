@@ -98,8 +98,9 @@ void loop()
         last_debug_log_ms = current_time_ms;
         float heap_mb = ESP.getFreeHeap() / (1024.0 * 1024.0);
         float psram_mb = ESP.getFreePsram() / (1024.0 * 1024.0);
-        logger_printf("[DEBUG][LOOP] Uptime: %s, BLE: %s, Camera: %s, Microphone: %s, FreeHeap: %.2f MB, FreePSRAM: %.2f MB", 
-            prettyUptime(current_time_ms).c_str(), bleState(g_is_ble_connected), onOff(is_camera_initialized()), onOff(is_microphone_initialized()), heap_mb, psram_mb);
+        int cpu_freq = getCpuFrequencyMhz();
+        logger_printf("[DEBUG][LOOP] Uptime: %s, BLE: %s, Camera: %s, Microphone: %s, CPU: %d MHz, FreeHeap: %.2f MB, FreePSRAM: %.2f MB", 
+            prettyUptime(current_time_ms).c_str(), bleState(g_is_ble_connected), onOff(is_camera_initialized()), onOff(is_microphone_initialized()), cpu_freq, heap_mb, psram_mb);
     }
 
     // When disconnected, the device just advertises.
