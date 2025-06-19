@@ -22,6 +22,7 @@ bool g_is_ble_connected = false;
 
 static TaskHandle_t photo_streaming_task_handle = nullptr;
 static TaskHandle_t ulaw_streaming_task_handle = nullptr;
+int g_photo_chunk_payload_size = 200; // Default, will be set dynamically
 
 // --- ServerHandler Class Implementation ---
 void ServerHandler::onConnect(BLEServer *server)
@@ -29,6 +30,10 @@ void ServerHandler::onConnect(BLEServer *server)
     g_is_ble_connected = true;
     logger_printf("[BLE] Client connected.\n");
     set_led_status(LED_STATUS_CONNECTED); // Set LED to green
+    // Dynamically set photo chunk size based on negotiated MTU
+    int mtu = BLEDevice::getMTU();
+    g_photo_chunk_payload_size = mtu > 23 ? (mtu - 3) : 20;
+    logger_printf("[BLE] Negotiated MTU: %d, photo chunk payload size set to: %d\n", mtu, g_photo_chunk_payload_size);
     // Do NOT initialize camera or microphone here
 }
 

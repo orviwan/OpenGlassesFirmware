@@ -109,7 +109,7 @@ Once photo capture is triggered, the device sends the JPEG image data in chunks 
 2.  **Reassemble Chunks:** Each notification packet has the following structure:
     *   **Data Chunks:**
         *   Header (2 bytes): A 16-bit chunk counter (little-endian). This counter starts at `0` for the first chunk of an image and increments for each subsequent data chunk of that image.
-        *   Payload (up to 200 bytes): Raw JPEG image data bytes.
+        *   **Payload (dynamic, up to MTU-3 bytes):** Raw JPEG image data bytes. The payload size is set to the negotiated BLE MTU minus 3 bytes (for the ATT header). The client must not assume a fixed chunk size and should handle notifications up to this size. Most BLE stacks handle this automatically.
     *   Collect these chunks and append the payload data in the order indicated by the chunk counter.
 3.  **Detect End-of-Photo:**
     *   When all image data for a photo has been sent, the device will send a special 2-byte marker:
@@ -121,6 +121,10 @@ Once photo capture is triggered, the device sends the JPEG image data in chunks 
         *   Header (2 bytes): `0xFE 0xFE`
         *   Payload (4 bytes): The 32-bit CRC32 checksum, sent in little-endian byte order.
     *   Your client should calculate the CRC32 of the reassembled JPEG data and compare it against this received value. If they match, the image was received correctly. If not, the image may be corrupted.
+
+**Client best practice:**
+- After connecting, request the highest MTU your platform supports (e.g., 247 or 512) to maximize throughput.
+- Always handle notification payloads up to (MTU - 3) bytes.
 
 ## Advanced
 - Modular code: see `src/audio_handler.cpp`, `audio_ulaw.cpp`, `photo_manager.cpp`

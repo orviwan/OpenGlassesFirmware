@@ -79,12 +79,16 @@ Client writes a single byte to control photo capture:
 Device sends JPEG image data in chunks via notifications:
 1.  **Data Chunks:**
     *   Header (2 bytes): 16-bit chunk counter (little-endian, starts at 0).
-    *   Payload (up to 200 bytes): JPEG image data.
+    *   **Payload (dynamic, up to MTU-3 bytes):** JPEG image data. The payload size is set to the negotiated BLE MTU minus 3 bytes (for the ATT header). The client must not assume a fixed chunk size and should handle notifications up to this size.
 2.  **End-of-Photo Marker (2 bytes):**
     *   Header: `0xFF 0xFF`. Signals image completion.
 3.  **CRC32 Checksum (6 bytes total, sent after End-of-Photo):**
     *   Header (2 bytes): `0xFE 0xFE`.
     *   Payload (4 bytes): 32-bit CRC32 of the entire JPEG image (little-endian). Client should verify this.
+
+**Client best practice:**
+- After connecting, request the highest MTU your platform supports (e.g., 247 or 512) to maximize throughput.
+- Always handle notification payloads up to (MTU - 3) bytes.
 
 ## See README.md for quickstart and UUIDs
 

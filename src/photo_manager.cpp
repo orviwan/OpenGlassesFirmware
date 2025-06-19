@@ -115,7 +115,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
         if (remaining > 0) {
             s_photo_chunk_buffer[0] = (uint8_t)(g_sent_photo_frames & 0xFF);
             s_photo_chunk_buffer[1] = (uint8_t)((g_sent_photo_frames >> 8) & 0xFF);
-            size_t bytes_to_copy = (remaining > MAX_PHOTO_CHUNK_PAYLOAD_SIZE) ? MAX_PHOTO_CHUNK_PAYLOAD_SIZE : remaining;
+            size_t bytes_to_copy = (remaining > g_photo_chunk_payload_size) ? g_photo_chunk_payload_size : remaining;
             memcpy(&s_photo_chunk_buffer[PHOTO_CHUNK_HEADER_LEN], &fb->buf[g_sent_photo_bytes], bytes_to_copy);
 
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN);
