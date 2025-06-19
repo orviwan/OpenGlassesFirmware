@@ -56,7 +56,17 @@ void configure_camera() {
 bool take_photo() {
     release_photo_buffer(); // Ensure previous buffer is released
 
-    // logger_printf("[CAM] Capturing photo...");
+    // Camera warm-up: discard first 3 frames to allow AWB/gain to settle
+    const int warmup_frames = 3;
+    for (int i = 0; i < warmup_frames; ++i) {
+        camera_fb_t *tmp_fb = esp_camera_fb_get();
+        if (tmp_fb) {
+            esp_camera_fb_return(tmp_fb);
+        } else {
+            logger_printf("[CAM] WARNING: Warm-up frame %d failed.\n", i+1);
+        }
+    }
+
     fb = esp_camera_fb_get();
     if (!fb) {
         logger_printf("[CAM] ERROR: Failed to get frame buffer!\n");
