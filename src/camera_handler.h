@@ -3,10 +3,13 @@
 
 #include "esp_camera.h" // For camera_fb_t
 #include "camera_pins.h" // If camera_pins.h is specific to camera setup
+#include <freertos/semphr.h> // For mutex
 
 // Global camera frame buffer pointer - consider encapsulating this
-extern camera_fb_t *fb; 
+extern camera_fb_t *fb;
+extern SemaphoreHandle_t g_camera_mutex; // Mutex to protect camera access
 
+void initialize_camera_mutex(); // Function to create the mutex
 void configure_camera();
 bool take_photo();
 void release_photo_buffer(); // New helper function

@@ -63,6 +63,7 @@ void setup()
     logger_printf("[POWER] Dynamic Frequency Scaling and Light Sleep enabled.\n");
 
     // Initialize modules
+    initialize_camera_mutex(); // Initialize the camera mutex
     initialize_led();
     configure_ble();
     initialize_photo_manager(); // Initializes photo buffer and default interval
