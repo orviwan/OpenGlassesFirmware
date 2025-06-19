@@ -43,7 +43,7 @@ The firmware implements several power-saving features to maximize battery life:
 - **Automatic Light Sleep:** When the device is connected but idle (not streaming audio or photos), it automatically enters a light sleep mode to reduce power consumption while maintaining the BLE connection.
 - **Optimized BLE Parameters:** The BLE advertising and connection parameters have been tuned to favor lower power consumption.
 
-## LED Status Indicator
+## LED Status Indicator (DOESN'T WORK)
 The onboard RGB LED provides at-a-glance status information:
 - **Solid Green**: The device is connected to a client.
 - **Solid Blue**: The device is actively streaming audio.
