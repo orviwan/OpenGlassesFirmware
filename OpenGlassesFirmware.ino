@@ -13,6 +13,27 @@
 #include "src/led_handler.h"      // For onboard LED control
 #include "src/logger.h"         // For thread-safe logging
 
+// Helper to print pretty uptime (hh:mm:ss)
+String prettyUptime(unsigned long ms) {
+    unsigned long seconds = ms / 1000;
+    unsigned int hours = seconds / 3600;
+    unsigned int minutes = (seconds % 3600) / 60;
+    unsigned int secs = seconds % 60;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u", hours, minutes, secs);
+    return String(buf);
+}
+
+// Helper to print ON/OFF for bool
+const char* onOff(bool state) {
+    return state ? "ON" : "OFF";
+}
+
+// Helper to print ACTIVE/IDLE for BLE connection
+const char* bleState(bool connected) {
+    return connected ? "ACTIVE" : "IDLE";
+}
+
 /**
  * @brief Arduino setup function. Initializes hardware and software components.
  */
@@ -75,8 +96,10 @@ void loop()
     // Periodic debug log every 10 seconds
     if (current_time_ms - last_debug_log_ms >= 10000) {
         last_debug_log_ms = current_time_ms;
-        logger_printf("[DEBUG][LOOP] Uptime: %lu ms, BLE: %d, Camera: %d, FreeHeap: %u, FreePSRAM: %u", 
-            current_time_ms, g_is_ble_connected, is_camera_initialized(), ESP.getFreeHeap(), ESP.getFreePsram());
+        float heap_mb = ESP.getFreeHeap() / (1024.0 * 1024.0);
+        float psram_mb = ESP.getFreePsram() / (1024.0 * 1024.0);
+        logger_printf("[DEBUG][LOOP] Uptime: %s, BLE: %s, Camera: %s, Microphone: %s, FreeHeap: %.2f MB, FreePSRAM: %.2f MB", 
+            prettyUptime(current_time_ms).c_str(), bleState(g_is_ble_connected), onOff(is_camera_initialized()), onOff(is_microphone_initialized()), heap_mb, psram_mb);
     }
 
     // When disconnected, the device just advertises.

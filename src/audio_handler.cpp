@@ -91,3 +91,7 @@ void deinit_microphone() {
         logger_printf("[MIC] I2S driver was not installed, skipping uninstall.\n");
     }
 }
+
+bool is_microphone_initialized() {
+    return i2s_driver_installed;
+}
