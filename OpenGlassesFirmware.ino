@@ -107,5 +107,11 @@ void loop()
     // When connected, other tasks handle streaming.
     // This non-blocking delay allows the idle task to run, which will trigger
     // light sleep if enabled and conditions are met, saving power.
-    vTaskDelay(pdMS_TO_TICKS(LOOP_DELAY_MS));
+    if (g_is_ble_connected) {
+        vTaskDelay(pdMS_TO_TICKS(LOOP_DELAY_MS)); // Active delay
+    } else {
+        // When disconnected, use a longer delay to allow for light sleep.
+        // The other FreeRTOS tasks also use long delays when disconnected.
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
 }

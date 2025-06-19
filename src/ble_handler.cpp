@@ -34,7 +34,16 @@ void ServerHandler::onConnect(BLEServer *server)
     int mtu = BLEDevice::getMTU();
     g_photo_chunk_payload_size = mtu > 23 ? (mtu - 3) : 20;
     logger_printf("[BLE] Negotiated MTU: %d, photo chunk payload size set to: %d\n", mtu, g_photo_chunk_payload_size);
-    // Do NOT initialize camera or microphone here
+    
+    // Resume tasks for active connection
+    if (photo_streaming_task_handle != nullptr) {
+        vTaskResume(photo_streaming_task_handle);
+        logger_printf("[TASK] Resumed photo streaming task.\n");
+    }
+    if (ulaw_streaming_task_handle != nullptr) {
+        vTaskResume(ulaw_streaming_task_handle);
+        logger_printf("[TASK] Resumed u-law streaming task.\n");
+    }
 }
 
 void ServerHandler::onDisconnect(BLEServer *server)
@@ -42,6 +51,16 @@ void ServerHandler::onDisconnect(BLEServer *server)
     g_is_ble_connected = false;
     logger_printf("[BLE] Client disconnected. Restarting advertising.\n");
     set_led_status(LED_STATUS_DISCONNECTED); // Set LED to orange
+
+    // Suspend tasks to save power
+    if (photo_streaming_task_handle != nullptr) {
+        vTaskSuspend(photo_streaming_task_handle);
+        logger_printf("[TASK] Suspended photo streaming task.\n");
+    }
+    if (ulaw_streaming_task_handle != nullptr) {
+        vTaskSuspend(ulaw_streaming_task_handle);
+        logger_printf("[TASK] Suspended u-law streaming task.\n");
+    }
 
     // Reset the photo manager state to stop any ongoing processes
     reset_photo_manager_state();
@@ -170,26 +189,28 @@ void photo_streaming_task(void *pvParameters) {
         if (g_is_ble_connected && g_photo_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_photo_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
             bool notifications_enabled = (desc && desc->getNotifications());
-            // Log status less frequently to avoid spamming, e.g., only on change or periodically
+            
             static bool last_notifications_enabled_status = false;
             if (notifications_enabled != last_notifications_enabled_status) {
                 logger_printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
                 last_notifications_enabled_status = notifications_enabled;
             }
+
             unsigned long now = millis();
             if (now - last_log_time > 5000) {
                 logger_printf("[PHOTO][DEBUG] Connected: %d, Notifications: %d, Uploading: %d, Mode: %d\n", g_is_ble_connected, notifications_enabled, g_is_photo_uploading, g_capture_mode);
                 last_log_time = now;
             }
+
             if (notifications_enabled) {
                 process_photo_capture_and_upload(millis());
+                vTaskDelay(pdMS_TO_TICKS(10)); // Active processing delay
             } else {
-                vTaskDelay(pdMS_TO_TICKS(100));
+                vTaskDelay(pdMS_TO_TICKS(100)); // Connected but notifications disabled
             }
         } else {
-            vTaskDelay(pdMS_TO_TICKS(100));
+            vTaskDelay(pdMS_TO_TICKS(500)); // Disconnected, sleep longer
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // Task runs approx every 10ms + processing time
     }
 }
 
@@ -197,6 +218,8 @@ void start_photo_streaming_task() {
     if (photo_streaming_task_handle == nullptr) {
         xTaskCreatePinnedToCore(
             photo_streaming_task, "PhotoStreamTask", 4096, NULL, 1, &photo_streaming_task_handle, 1);
+        vTaskSuspend(photo_streaming_task_handle); // Suspend task immediately after creation
+        logger_printf("[TASK] Created and suspended photo streaming task.\n");
     }
 }
 
@@ -212,13 +235,14 @@ void ulaw_streaming_task(void *pvParameters) {
                 }
                 set_led_status(LED_STATUS_AUDIO_STREAMING); // Set LED to blue
                 process_and_send_ulaw_audio(g_audio_data_characteristic);
+                vTaskDelay(pdMS_TO_TICKS(5)); // Active streaming delay
             } else {
                 if (mic_active) {
                     deinit_microphone();
                     mic_active = false;
                 }
                 set_led_status(LED_STATUS_CONNECTED); // Revert LED state
-                vTaskDelay(pdMS_TO_TICKS(50));
+                vTaskDelay(pdMS_TO_TICKS(100)); // Connected but notifications disabled
             }
         } else {
             if (mic_active) {
@@ -226,9 +250,8 @@ void ulaw_streaming_task(void *pvParameters) {
                 mic_active = false;
             }
             set_led_status(LED_STATUS_DISCONNECTED); // Revert LED state
-            vTaskDelay(pdMS_TO_TICKS(50));
+            vTaskDelay(pdMS_TO_TICKS(500)); // Disconnected, sleep longer
         }
-        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 
@@ -236,6 +259,8 @@ void start_ulaw_streaming_task() {
     if (ulaw_streaming_task_handle == nullptr) {
         xTaskCreatePinnedToCore(
             ulaw_streaming_task, "ULawStreamTask", 4096, NULL, 1, &ulaw_streaming_task_handle, 1);
+        vTaskSuspend(ulaw_streaming_task_handle); // Suspend task immediately after creation
+        logger_printf("[TASK] Created and suspended u-law streaming task.\n");
     }
 }
 
