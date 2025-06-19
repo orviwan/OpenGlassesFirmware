@@ -98,3 +98,7 @@ void deinit_camera() {
     }
     camera_initialized = false;
 }
+
+bool is_camera_initialized() {
+    return camera_initialized;
+}

@@ -11,5 +11,6 @@ void configure_camera();
 bool take_photo();
 void release_photo_buffer(); // New helper function
 void deinit_camera(); // Add deinit function
+bool is_camera_initialized();
 
 #endif // CAMERA_HANDLER_H

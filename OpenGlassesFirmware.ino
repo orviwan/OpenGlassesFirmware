@@ -60,6 +60,7 @@ void setup()
 void loop()
 {
     unsigned long current_time_ms = millis();
+    static unsigned long last_debug_log_ms = 0;
 
     if (g_is_ble_connected)
     {
@@ -70,6 +71,14 @@ void loop()
             update_battery_level();
         }
     }
+
+    // Periodic debug log every 10 seconds
+    if (current_time_ms - last_debug_log_ms >= 10000) {
+        last_debug_log_ms = current_time_ms;
+        logger_printf("[DEBUG][LOOP] Uptime: %lu ms, BLE: %d, Camera: %d, FreeHeap: %u, FreePSRAM: %u", 
+            current_time_ms, g_is_ble_connected, is_camera_initialized(), ESP.getFreeHeap(), ESP.getFreePsram());
+    }
+
     // When disconnected, the device just advertises.
     // When connected, other tasks handle streaming.
     // This non-blocking delay allows the idle task to run, which will trigger
