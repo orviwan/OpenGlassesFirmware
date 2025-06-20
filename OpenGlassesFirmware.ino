@@ -35,6 +35,7 @@ const char* bleState(bool connected) {
 }
 
 unsigned long g_last_disconnect_time = 0;
+unsigned long g_last_debug_log_ms = 0;
 
 /**
  * @brief Arduino setup function. Initializes hardware and software components.
@@ -110,9 +111,9 @@ void loop()
         }
 
         // Check if it's time to go to deep sleep
-        if (millis() - g_last_disconnect_time >= 10000) { // 10 seconds
-            logger_printf("[POWER] No connection. Entering deep sleep for 10 seconds.\n");
-            esp_sleep_enable_timer_wakeup(10 * 1000000); // 10 seconds
+        if (millis() - g_last_disconnect_time >= DEEP_SLEEP_DISCONNECT_DELAY_MS) {
+            logger_printf("[POWER] No connection for %lu ms. Entering deep sleep for %lu seconds.\n", DEEP_SLEEP_DISCONNECT_DELAY_MS, DEEP_SLEEP_WAKE_INTERVAL_S);
+            esp_sleep_enable_timer_wakeup(DEEP_SLEEP_WAKE_INTERVAL_S * 1000000);
             esp_deep_sleep_start();
         }
 
@@ -124,7 +125,15 @@ void loop()
         }
     }
 
-    // The periodic debug log remains disabled to prevent serial comms from blocking light sleep.
+    // Periodic debug log
+    if (millis() - g_last_debug_log_ms >= DEBUG_LOG_INTERVAL_MS) {
+        g_last_debug_log_ms = millis();
+        logger_printf("[STATS]\nUptime: %s\nCPU Freq: %d MHz\nBLE: %s\nFree PSRAM: %u bytes\n",
+                      prettyUptime(millis()).c_str(),
+                      getCpuFrequencyMhz(),
+                      bleState(g_is_ble_connected),
+                      ESP.getFreePsram());
+    }
 
     // This non-blocking delay allows the idle task to run, which will trigger
     // light sleep if enabled and conditions are met. The delay is longer when

@@ -38,7 +38,7 @@ This ensures that the device returns to a clean and predictable state, ready for
 
 ## Power Management
 The firmware implements several power-saving features to maximize battery life:
-- **Deep Sleep Cycle:** To conserve power, if the device remains disconnected for 10 seconds, it enters a deep sleep mode for 10 seconds. After waking, it will advertise for 10 seconds, waiting for a new connection. This cycle repeats to balance power saving and availability.
+- **Deep Sleep Cycle:** To conserve power, if the device remains disconnected for 10 minutes, it enters a deep sleep mode for 10 seconds. After waking, it will advertise, waiting for a new connection. This cycle repeats to balance power saving and availability. These timings are configurable in `src/config.h`.
 - **Dynamic Frequency Scaling (DFS):** The CPU frequency is automatically scaled between 80MHz and 240MHz based on the workload. During idle periods, the frequency is lowered to save power.
 - **Automatic Light Sleep:** When the device is connected but idle (not streaming audio or photos), it automatically enters a light sleep mode to reduce power consumption while maintaining the BLE connection.
 - **Optimized BLE Parameters:** The BLE advertising and connection parameters have been tuned to favor lower power consumption.
