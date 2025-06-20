@@ -56,7 +56,7 @@ void setup()
 
     // Configure and enable power management by default for optimal battery life.
     // This includes Dynamic Frequency Scaling (DFS) and automatic light sleep.
-    esp_pm_config_esp32_t pm_config = {
+    esp_pm_config_esp32s3_t pm_config = {
         .max_freq_mhz = 240, // Maximum CPU frequency
         .min_freq_mhz = 80,  // Minimum CPU frequency for power saving
         .light_sleep_enable = true // Enable automatic light sleep
