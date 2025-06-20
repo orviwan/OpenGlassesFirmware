@@ -2,54 +2,72 @@
 #include "logger.h"
 #include "config.h"
 #include "ble_handler.h" // For g_is_ble_connected
+#include <Arduino.h>     // For pinMode, digitalWrite, millis
 
-// TODO: THIS WAS A WASTE OF TIME, IT'S NOT AN RGBLED
-
-Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
-
-static led_status_t last_status = LED_STATUS_OFF;
+static led_status_t g_current_led_status = LED_STATUS_OFF;
 
 void initialize_led() {
-    pixels.begin();
-    pixels.setBrightness(20);
-    set_led_status(LED_STATUS_DISCONNECTED); // Initial state
+    pinMode(PIN_LED, OUTPUT);
+    digitalWrite(PIN_LED, LOW); // Start with LED off
+    set_led_status(LED_STATUS_DISCONNECTED); // Set initial logical state
+    logger_printf("[LED] Single-color LED handler initialized on pin %d.\n", PIN_LED);
 }
 
 void set_led_status(led_status_t status) {
-    if (status == last_status && status != LED_STATUS_PHOTO_CAPTURING) {
-        // Avoid redundant updates except for photo blink
+    // Photo capturing is a momentary flash, handled in handle_led directly
+    if (status == LED_STATUS_PHOTO_CAPTURING) {
+        // Immediately flash the LED
+        digitalWrite(PIN_LED, HIGH);
+        delay(50); // Brief blocking delay for a visible flash
+        digitalWrite(PIN_LED, LOW);
+        // The main handle_led loop will then resume the previous state's pattern
         return;
     }
-    // Only allow CONNECTED if BLE is actually connected
-    if (status == LED_STATUS_CONNECTED && !g_is_ble_connected) {
-        // logger_printf("[LED] Blocked attempt to set LED to CONNECTED while not connected.\n");
-        return;
-    }
-    last_status = status;
-    switch (status) {
-        case LED_STATUS_DISCONNECTED:
-            pixels.setPixelColor(0, pixels.Color(0, 255, 0)); // Green
-            break;
+    g_current_led_status = status;
+}
+
+void handle_led() {
+    static unsigned long last_blink_time = 0;
+    static bool led_state = false;
+    unsigned long current_time = millis();
+
+    switch (g_current_led_status) {
         case LED_STATUS_CONNECTED:
-            pixels.setPixelColor(0, pixels.Color(255, 165, 0)); // Orange
+            digitalWrite(PIN_LED, HIGH); // Solid ON
             break;
-        case LED_STATUS_AUDIO_STREAMING:
-            pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue
-            break;
-        case LED_STATUS_PHOTO_CAPTURING:
-            pixels.setPixelColor(0, pixels.Color(255, 0, 0));
-            pixels.show();
-            delay(100);
-            // Restore to correct state after photo blink
-            if (g_is_ble_connected) {
-                set_led_status(LED_STATUS_CONNECTED);
-            } else {
-                set_led_status(LED_STATUS_DISCONNECTED);
+
+        case LED_STATUS_DISCONNECTED: // Slow blink (1s period)
+            if (current_time - last_blink_time >= 500) {
+                last_blink_time = current_time;
+                led_state = !led_state;
+                digitalWrite(PIN_LED, led_state);
             }
-            return;
-        case LED_STATUS_OFF:
-            pixels.clear();
             break;
+
+        case LED_STATUS_AUDIO_STREAMING: // Fast blink (0.5s period)
+            if (current_time - last_blink_time >= 250) {
+                last_blink_time = current_time;
+                led_state = !led_state;
+                digitalWrite(PIN_LED, led_state);
+            }
+            break;
+
+        case LED_STATUS_LOW_POWER: // Slow "heartbeat" pulse (50ms pulse every 2s)
+            if (!led_state && (current_time - last_blink_time >= 2000)) {
+                last_blink_time = current_time;
+                led_state = true;
+                digitalWrite(PIN_LED, HIGH);
+            } else if (led_state && (current_time - last_blink_time >= 50)) {
+                led_state = false;
+                digitalWrite(PIN_LED, LOW);
+            }
+            break;
+
+        case LED_STATUS_OFF:
+            digitalWrite(PIN_LED, LOW); // Solid OFF
+            break;
+
+        default:
+            break; // Should not happen
     }
-    pixels.show();
 }

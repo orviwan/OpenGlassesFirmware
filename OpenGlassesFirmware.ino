@@ -34,6 +34,8 @@ const char* bleState(bool connected) {
     return connected ? "ACTIVE" : "IDLE";
 }
 
+unsigned long g_last_disconnect_time = 0;
+
 /**
  * @brief Arduino setup function. Initializes hardware and software components.
  */
@@ -81,38 +83,55 @@ void setup()
  */
 void loop()
 {
-    unsigned long current_time_ms = millis();
-    static unsigned long last_debug_log_ms = 0;
+    static led_status_t last_led_status = LED_STATUS_OFF;
+
+    // Must be called on every loop to drive the LED blink patterns
+    handle_led();
 
     if (g_is_ble_connected)
     {
-        // Photo streaming is handled by its dedicated FreeRTOS task (photo_streaming_task)
+        // When connected, ensure LED shows connected status.
+        // This overrides any other state like LOW_POWER.
+        if (last_led_status != LED_STATUS_CONNECTED) {
+            set_led_status(LED_STATUS_CONNECTED);
+            last_led_status = LED_STATUS_CONNECTED;
+            g_last_disconnect_time = 0; // Reset disconnect timer
+        }
 
         // Handle battery updates
-        if (current_time_ms - g_last_battery_update_ms >= BATTERY_UPDATE_INTERVAL_MS) {
+        if (millis() - g_last_battery_update_ms >= BATTERY_UPDATE_INTERVAL_MS) {
             update_battery_level();
         }
     }
+    else // When disconnected
+    {
+        if (g_last_disconnect_time == 0) {
+            g_last_disconnect_time = millis();
+        }
 
-    // Periodic debug log every 10 seconds
-    if (current_time_ms - last_debug_log_ms >= 10000) {
-        last_debug_log_ms = current_time_ms;
-        float heap_mb = ESP.getFreeHeap() / (1024.0 * 1024.0);
-        float psram_mb = ESP.getFreePsram() / (1024.0 * 1024.0);
-        int cpu_freq = getCpuFrequencyMhz();
-        logger_printf("[DEBUG][LOOP] Uptime: %s, BLE: %s, Camera: %s, Microphone: %s, CPU: %d MHz, FreeHeap: %.2f MB, FreePSRAM: %.2f MB", 
-            prettyUptime(current_time_ms).c_str(), bleState(g_is_ble_connected), onOff(is_camera_initialized()), onOff(is_microphone_initialized()), cpu_freq, heap_mb, psram_mb);
+        // Check if it's time to go to deep sleep
+        if (millis() - g_last_disconnect_time >= 10000) { // 10 seconds
+            logger_printf("[POWER] No connection. Entering deep sleep for 10 seconds.\n");
+            esp_sleep_enable_timer_wakeup(10 * 1000000); // 10 seconds
+            esp_deep_sleep_start();
+        }
+
+        // Check CPU frequency and update LED to provide visual feedback on power state.
+        led_status_t new_status = (getCpuFrequencyMhz() <= 80) ? LED_STATUS_LOW_POWER : LED_STATUS_DISCONNECTED;
+        if (last_led_status != new_status) {
+            set_led_status(new_status);
+            last_led_status = new_status;
+        }
     }
 
-    // When disconnected, the device just advertises.
-    // When connected, other tasks handle streaming.
+    // The periodic debug log remains disabled to prevent serial comms from blocking light sleep.
+
     // This non-blocking delay allows the idle task to run, which will trigger
-    // light sleep if enabled and conditions are met, saving power.
+    // light sleep if enabled and conditions are met. The delay is longer when
+    // disconnected to further encourage power saving.
     if (g_is_ble_connected) {
         vTaskDelay(pdMS_TO_TICKS(LOOP_DELAY_MS)); // Active delay
     } else {
-        // When disconnected, use a longer delay to allow for light sleep.
-        // The other FreeRTOS tasks also use long delays when disconnected.
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(500)); // Idle delay
     }
 }

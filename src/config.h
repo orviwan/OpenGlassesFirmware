@@ -68,7 +68,7 @@ constexpr unsigned long LOOP_DELAY_MS = 20;                 // Delay at the end 
 // ---------------------------------------------------------------------------------
 // Pin Definitions
 // ---------------------------------------------------------------------------------
-#define PIN_NEOPIXEL 21
+#define PIN_LED 21 // single-color LED
 
 // Camera warm-up: number of frames to discard after init (for AWB/gain to settle)
 constexpr int CAMERA_WARMUP_FRAMES = 5;

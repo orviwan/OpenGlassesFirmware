@@ -1,8 +1,7 @@
 # OpenGlass Firmware - BLE Streaming Architecture (2025)
 
 ## Required Libraries
-To compile this firmware, you will need to install the following library through the Arduino IDE Library Manager:
-- **Adafruit NeoPixel**: Used for controlling the onboard RGB LED.
+This project has no external library dependencies beyond the standard ESP32 Arduino Core.
 
 ## Features
 - BLE Device Name: **OpenGlass**
@@ -39,16 +38,18 @@ This ensures that the device returns to a clean and predictable state, ready for
 
 ## Power Management
 The firmware implements several power-saving features to maximize battery life:
+- **Deep Sleep Cycle:** To conserve power, if the device remains disconnected for 10 seconds, it enters a deep sleep mode for 10 seconds. After waking, it will advertise for 10 seconds, waiting for a new connection. This cycle repeats to balance power saving and availability.
 - **Dynamic Frequency Scaling (DFS):** The CPU frequency is automatically scaled between 80MHz and 240MHz based on the workload. During idle periods, the frequency is lowered to save power.
 - **Automatic Light Sleep:** When the device is connected but idle (not streaming audio or photos), it automatically enters a light sleep mode to reduce power consumption while maintaining the BLE connection.
 - **Optimized BLE Parameters:** The BLE advertising and connection parameters have been tuned to favor lower power consumption.
 
-## LED Status Indicator (DOESN'T WORK)
-The onboard RGB LED provides at-a-glance status information:
-- **Solid Green**: The device is connected to a client.
-- **Solid Blue**: The device is actively streaming audio.
-- **Blinking Red**: A photo has just been captured. The LED will blink once and then return to its previous state (Green or Blue).
-- **Solid Orange**: The device is disconnected and advertising, ready for a new connection.
+## LED Status Indicator
+The onboard LED provides at-a-glance status information using different patterns:
+- **Solid On**: Connected to a client.
+- **Slow Blink**: Disconnected and advertising.
+- **Fast Blink**: Actively streaming audio.
+- **Brief Flash**: A photo has been captured.
+- **Heartbeat Pulse**: Low power mode.
 
 ## How to Use μ-law (G.711) Audio Streaming
 
