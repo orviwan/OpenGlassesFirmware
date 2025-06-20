@@ -20,6 +20,7 @@ extern unsigned long g_last_capture_time_ms;
 extern size_t g_sent_photo_bytes;
 extern uint16_t g_sent_photo_frames;
 extern bool g_is_photo_uploading;
+extern bool g_photo_notifications_enabled; // True if the client has subscribed to photo data
 extern bool g_is_processing_capture_request; // Flag to indicate if a capture request is being processed
 extern bool g_single_shot_pending; // Flag for single photo request pending
 

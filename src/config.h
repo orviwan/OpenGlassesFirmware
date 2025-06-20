@@ -49,7 +49,7 @@ constexpr const char* BATTERY_LEVEL_USER_DESCRIPTION = "Device Battery Level";
 // ---------------------------------------------------------------------------------
 constexpr const char* DEVICE_MANUFACTURER_NAME = "Based Hardware";
 constexpr const char* DEVICE_MODEL_NUMBER = "OpenGlass";
-constexpr const char* DEVICE_FIRMWARE_REVISION = "1.0.3"; // Updated version
+constexpr const char* DEVICE_FIRMWARE_REVISION = "1.0.4"; // Updated version
 constexpr const char* DEVICE_HARDWARE_REVISION = "Seeed Xiao ESP32S3 Sense";
 
 // ---------------------------------------------------------------------------------
@@ -60,18 +60,19 @@ constexpr size_t PHOTO_CHUNK_HEADER_LEN = 2;
 constexpr size_t PHOTO_CHUNK_BUFFER_SIZE = MAX_PHOTO_CHUNK_PAYLOAD_SIZE + PHOTO_CHUNK_HEADER_LEN;
 
 // ---------------------------------------------------------------------------------
-// Timings and Intervals
+// Timings and Intervals (all in milliseconds)
 // ---------------------------------------------------------------------------------
-constexpr unsigned long BATTERY_UPDATE_INTERVAL_MS = 60000; // 60 seconds
-constexpr unsigned long LOOP_DELAY_MS = 20;                 // Delay at the end of the main loop
+constexpr unsigned long BATTERY_UPDATE_INTERVAL_MS = 60000;      // 60 seconds
+constexpr unsigned long LOOP_DELAY_MS = 20;                      // Delay at the end of the main loop
 constexpr unsigned long DEEP_SLEEP_DISCONNECT_DELAY_MS = 600000; // 10 minutes
-constexpr unsigned long DEEP_SLEEP_WAKE_INTERVAL_S = 10;       // 10 seconds
-constexpr unsigned long DEBUG_LOG_INTERVAL_MS = 5000;        // 5 seconds
+constexpr unsigned long DEEP_SLEEP_WAKE_INTERVAL_MS = 10000;     // 10 seconds
+constexpr unsigned long DEBUG_LOG_INTERVAL_MS = 10000;           // 10 seconds
+constexpr unsigned long PHOTO_INTERVAL_MS = 5000;                // 5 seconds
 
 // ---------------------------------------------------------------------------------
 // Pin Definitions
 // ---------------------------------------------------------------------------------
-#define PIN_LED 21 // single-color LED
+#define PIN_LED 21 // single-color orange user LED
 
 // Camera warm-up: number of frames to discard after init (for AWB/gain to settle)
 constexpr int CAMERA_WARMUP_FRAMES = 5;

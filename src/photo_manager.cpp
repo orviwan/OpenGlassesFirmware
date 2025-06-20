@@ -16,6 +16,7 @@ unsigned long g_last_capture_time_ms = 0;
 size_t g_sent_photo_bytes = 0;
 uint16_t g_sent_photo_frames = 0; // Changed to uint16_t to match 2-byte frame counter
 bool g_is_photo_uploading = false;
+bool g_photo_notifications_enabled = false; // True if the client has subscribed to photo data
 bool g_is_processing_capture_request = false; // Flag to indicate if a capture request is being processed
 bool g_single_shot_pending = false; // Flag for single photo request pending
 
@@ -70,7 +71,8 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
     // Serial.println("[PHOTO] process_photo_capture_and_upload"); // Too frequent, uncomment if needed
 
     // Handle photo capture triggering
-    if (!g_is_photo_uploading && g_is_ble_connected && !g_is_processing_capture_request) {
+    // Only attempt to capture if connected, notifications are enabled, not already uploading, and not already processing a request.
+    if (!g_is_photo_uploading && g_is_ble_connected && g_photo_notifications_enabled && !g_is_processing_capture_request) {
         bool trigger_capture = false;
 
         // Prioritize single shot request

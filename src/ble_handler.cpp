@@ -186,28 +186,39 @@ void photo_streaming_task(void *pvParameters) {
     while (true) {
         if (g_is_ble_connected && g_photo_data_characteristic) {
             BLE2902* desc = (BLE2902*)g_photo_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-            bool notifications_enabled = (desc && desc->getNotifications());
+            
+            // Update the global flag based on the descriptor's notification status.
+            g_photo_notifications_enabled = (desc && desc->getNotifications());
             
             static bool last_notifications_enabled_status = false;
-            if (notifications_enabled != last_notifications_enabled_status) {
-                logger_printf("[BLE] Photo data notifications status: %s\n", notifications_enabled ? "ENABLED" : "DISABLED");
-                last_notifications_enabled_status = notifications_enabled;
+            if (g_photo_notifications_enabled != last_notifications_enabled_status) {
+                logger_printf("[BLE] Photo data notifications status: %s\n", g_photo_notifications_enabled ? "ENABLED" : "DISABLED");
+                last_notifications_enabled_status = g_photo_notifications_enabled;
             }
 
             unsigned long now = millis();
             if (now - last_log_time > 5000) {
-                logger_printf("[PHOTO][DEBUG] Connected: %d, Notifications: %d, Uploading: %d, Mode: %d\n", g_is_ble_connected, notifications_enabled, g_is_photo_uploading, g_capture_mode);
+                logger_printf("[PHOTO][DEBUG] Connected: %d, Notifications: %d, Uploading: %d, Mode: %d\n", g_is_ble_connected, g_photo_notifications_enabled, g_is_photo_uploading, g_capture_mode);
                 last_log_time = now;
             }
 
-            if (notifications_enabled) {
-                process_photo_capture_and_upload(millis());
-                vTaskDelay(pdMS_TO_TICKS(10)); // Active processing delay
+            // The photo manager function now internally checks if notifications are enabled before capturing.
+            process_photo_capture_and_upload(now);
+
+            // Adjust delay based on state.
+            if (g_is_photo_uploading) {
+                vTaskDelay(pdMS_TO_TICKS(10)); // Short delay while actively sending chunks.
+            } else if (g_photo_notifications_enabled) {
+                vTaskDelay(pdMS_TO_TICKS(50)); // Medium delay when waiting for capture trigger (interval/single shot).
             } else {
-                vTaskDelay(pdMS_TO_TICKS(100)); // Connected but notifications disabled
+                vTaskDelay(pdMS_TO_TICKS(100)); // Longer delay when connected but not subscribed.
             }
         } else {
-            vTaskDelay(pdMS_TO_TICKS(500)); // Disconnected, sleep longer
+            if (g_photo_notifications_enabled) {
+                g_photo_notifications_enabled = false; // Ensure flag is false when disconnected
+                logger_printf("[BLE] Photo data notifications status: DISABLED (disconnected)\n");
+            }
+            vTaskDelay(pdMS_TO_TICKS(500)); // Disconnected, sleep longer.
         }
     }
 }
