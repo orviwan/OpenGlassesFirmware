@@ -100,11 +100,11 @@ void configure_camera() {
         config.xclk_freq_hz = 20000000;
 
         // Camera settings
-        config.frame_size = FRAMESIZE_SVGA;   // 800x600 resolution
-        config.pixel_format = PIXFORMAT_JPEG; // Output format JPEG
-        config.jpeg_quality = 10;             // JPEG quality (0-63, lower means higher quality)
-        config.fb_location = CAMERA_FB_IN_PSRAM; // Store frame buffer in PSRAM
-        config.fb_count = 2;                  // Use 2 frame buffers for stability
+        config.frame_size = FRAMESIZE_XGA;         // 1024x768 resolution
+        config.pixel_format = PIXFORMAT_JPEG;      // Output format JPEG
+        config.jpeg_quality = 20;                  // JPEG quality (0-63, lower means higher quality)
+        config.fb_location = CAMERA_FB_IN_PSRAM;   // Store frame buffer in PSRAM
+        config.fb_count = 2;                       // Use 2 frame buffers for stability
         config.grab_mode = CAMERA_GRAB_WHEN_EMPTY; // Use WHEN_EMPTY for more stability
 
 
@@ -122,7 +122,7 @@ void configure_camera() {
         sensor_t * s = esp_camera_sensor_get();
         if (s) {
             s->reset(s); // Reset the sensor to ensure it's in a known state
-            s->set_framesize(s, FRAMESIZE_SVGA);
+            s->set_framesize(s, FRAMESIZE_XGA);
             s->set_pixformat(s, PIXFORMAT_JPEG);
             logger_printf("[CAM] Sensor reset, framesize and pixformat set post-init.\n");
         } else {

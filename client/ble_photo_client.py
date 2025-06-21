@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import time
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
@@ -15,10 +16,12 @@ photo_buffer = bytearray()
 is_receiving = False
 received_frames = set()
 last_frame_number = -1
+download_start_time = 0
+stats = {}
 
 def notification_handler(characteristic: BleakGATTCharacteristic, data: bytearray):
     """Handles incoming data from the photo data characteristic."""
-    global photo_buffer, is_receiving, received_frames, last_frame_number
+    global photo_buffer, is_receiving, received_frames, last_frame_number, download_start_time, stats
 
     if not is_receiving:
         return
@@ -31,6 +34,17 @@ def notification_handler(characteristic: BleakGATTCharacteristic, data: bytearra
     if frame_number == 0xFFFF:
         print("\n[CLIENT] End-of-photo marker received.")
         is_receiving = False  # Stop processing further packets
+
+        # --- Calculate download stats ---
+        download_end_time = time.monotonic()
+        duration = download_end_time - download_start_time
+        size_bytes = len(photo_buffer)
+        stats['download_duration_s'] = duration
+        stats['file_size_bytes'] = size_bytes
+        if duration > 0:
+            stats['transfer_speed_kbps'] = (size_bytes / 1024) / duration
+        else:
+            stats['transfer_speed_kbps'] = 0
 
         # Validate the received JPEG data by checking for SOI and EOI markers.
         if len(photo_buffer) > 4 and photo_buffer.startswith(b'\xff\xd8') and photo_buffer.endswith(b'\xff\xd9'):
@@ -66,18 +80,25 @@ def notification_handler(characteristic: BleakGATTCharacteristic, data: bytearra
 
 async def main():
     """Main function to scan, connect, and receive the photo."""
-    global is_receiving, photo_buffer, received_frames, last_frame_number
+    global is_receiving, photo_buffer, received_frames, last_frame_number, download_start_time, stats
 
     print(f"Scanning for '{DEVICE_NAME}'...")
+    scan_start_time = time.monotonic()
     device = await BleakScanner.find_device_by_name(DEVICE_NAME)
+    scan_end_time = time.monotonic()
 
     if not device:
         print(f"Could not find device with name '{DEVICE_NAME}'. Please check if it's advertising.")
         return
 
     print(f"Found device: {device.name} ({device.address})")
+    stats['scan_time_s'] = scan_end_time - scan_start_time
 
+    connect_start_time = time.monotonic()
     async with BleakClient(device) as client:
+        connect_end_time = time.monotonic()
+        stats['connect_time_s'] = connect_end_time - connect_start_time
+
         if not client.is_connected:
             print(f"Failed to connect to {device.address}")
             return
@@ -108,8 +129,9 @@ async def main():
 
             # 2. Request single photo
             print(f"Requesting single photo via Photo Control ({PHOTO_CONTROL_UUID})...")
-            is_receiving = True # Set flag to start processing notifications
-            await client.write_gatt_char(PHOTO_CONTROL_UUID, b'\xff', response=True) # -1 signed byte
+            is_receiving = True  # Set flag to start processing notifications
+            download_start_time = time.monotonic()
+            await client.write_gatt_char(PHOTO_CONTROL_UUID, b'\xff', response=True)  # -1 signed byte
             print("[CLIENT] Photo request sent. Waiting for data...")
 
             # 3. Wait for the transfer to complete
@@ -125,8 +147,17 @@ async def main():
             try:
                 await client.stop_notify(PHOTO_DATA_UUID)
             except Exception as e:
-                print(f"Error stopping notifications: {e}")
+                print(f"Error stopping notifications: {e}")  # Can happen if already disconnected
             print("Disconnected.")
+
+            # --- Print final stats ---
+            print("\n--- Transfer Statistics ---")
+            print(f"  Scan time:      {stats.get('scan_time_s', 0):.2f} s")
+            print(f"  Connect time:   {stats.get('connect_time_s', 0):.2f} s")
+            print(f"  Download time:  {stats.get('download_duration_s', 0):.2f} s")
+            print(f"  File size:      {stats.get('file_size_bytes', 0) / 1024:.2f} KB")
+            print(f"  Transfer speed: {stats.get('transfer_speed_kbps', 0):.2f} KB/s")
+            print("---------------------------\n")
 
 
 if __name__ == "__main__":
