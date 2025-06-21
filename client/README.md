@@ -6,8 +6,9 @@ This directory contains a Python script (`ble_photo_client.py`) for testing the 
 - Connects to the "OpenGlass" BLE device.
 - Requests a single photo capture.
 - Receives the JPEG image data in chunks.
-- Verifies the image integrity using a CRC32 checksum that is compatible with the ESP32's hardware implementation.
-- Saves the final image as `received_photo.jpg`.
+- Performs basic validation of the received data to ensure it starts and ends with JPEG markers.
+- Saves the final image with a timestamp (e.g., `photo_20250621_143000.jpg`).
+- Displays detailed performance metrics after each transfer (scan time, connect time, download time, speed).
 
 ## Requirements
 - Python 3.7+
@@ -39,4 +40,4 @@ This directory contains a Python script (`ble_photo_client.py`) for testing the 
     python3 ble_photo_client.py
     ```
 
-The script will automatically scan for the device, connect, request a photo, receive the data, verify the checksum, and save the resulting image in the same directory.
+The script will automatically scan for the device, connect, request a photo, receive the data, validate it, and save the resulting image. It will then print a summary of the transfer performance.
