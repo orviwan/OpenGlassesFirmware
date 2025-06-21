@@ -101,6 +101,7 @@ void configure_ble()
     logger_printf("\n");
     logger_printf("[BLE] Initializing...\n");
     BLEDevice::init(DEVICE_MODEL_NUMBER); // Device name
+    BLEDevice::setMTU(247); // Request a larger MTU
     BLEServer *server = BLEDevice::createServer();
     server->setCallbacks(new ServerHandler());
 
