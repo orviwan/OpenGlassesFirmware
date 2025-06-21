@@ -20,6 +20,7 @@ class ServerHandler : public BLEServerCallbacks
 {
     void onConnect(BLEServer *pServer) override;
     void onDisconnect(BLEServer *pServer) override;
+    void onMtuChanged(BLEServer *pServer, esp_ble_gatts_cb_param_t *param);
 };
 
 // BLE Characteristic Event Callbacks for Photo Control

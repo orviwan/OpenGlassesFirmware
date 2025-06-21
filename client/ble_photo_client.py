@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
@@ -29,13 +30,25 @@ def notification_handler(characteristic: BleakGATTCharacteristic, data: bytearra
     # End-of-Photo marker (0xFFFF)
     if frame_number == 0xFFFF:
         print("\n[CLIENT] End-of-photo marker received.")
-        is_receiving = False # Stop processing further packets
-        try:
-            with open("received_photo.jpg", "wb") as f:
-                f.write(photo_buffer)
-            print(f"\n[SUCCESS] Photo saved as received_photo.jpg ({len(photo_buffer)} bytes)")
-        except IOError as e:
-            print(f"[ERROR] Failed to save photo: {e}")
+        is_receiving = False  # Stop processing further packets
+
+        # Validate the received JPEG data by checking for SOI and EOI markers.
+        if len(photo_buffer) > 4 and photo_buffer.startswith(b'\xff\xd8') and photo_buffer.endswith(b'\xff\xd9'):
+            print("[CLIENT] JPEG validation successful (SOI and EOI markers found).")
+            try:
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"received_photo_{timestamp}.jpg"
+                with open(filename, "wb") as f:
+                    f.write(photo_buffer)
+                print(f"\n[SUCCESS] Photo saved as {filename} ({len(photo_buffer)} bytes)")
+            except IOError as e:
+                print(f"[ERROR] Failed to save photo: {e}")
+        else:
+            print("\n[ERROR] JPEG validation FAILED. The received data is not a valid image.")
+            print(f"  [DEBUG] Total bytes received: {len(photo_buffer)}")
+            if len(photo_buffer) > 4:
+                print(f"  [DEBUG] Start bytes: {photo_buffer[:2].hex()}")
+                print(f"  [DEBUG] End bytes:   {photo_buffer[-2:].hex()}")
         return
 
     # Regular photo data frame

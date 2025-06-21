@@ -105,7 +105,7 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
             logger_printf("[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
-            delay(15); // Increased delay to 15ms to improve reliability
+            delay(20); // Increased delay to 20ms to improve reliability with large MTU
 
             g_sent_photo_bytes += bytes_to_copy;
             g_sent_photo_frames++;

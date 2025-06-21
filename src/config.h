@@ -55,7 +55,9 @@ constexpr const char* DEVICE_HARDWARE_REVISION = "Seeed Xiao ESP32S3 Sense";
 // ---------------------------------------------------------------------------------
 // Photo Chunking
 // ---------------------------------------------------------------------------------
-constexpr size_t MAX_PHOTO_CHUNK_PAYLOAD_SIZE = 200;
+// This must be large enough to hold the maximum possible payload from a negotiated MTU.
+// For a 247-byte MTU, the payload is 244 bytes (247 - 3 bytes for ATT header).
+constexpr size_t MAX_PHOTO_CHUNK_PAYLOAD_SIZE = 244;
 constexpr size_t PHOTO_CHUNK_HEADER_LEN = 2;
 constexpr size_t PHOTO_CHUNK_BUFFER_SIZE = MAX_PHOTO_CHUNK_PAYLOAD_SIZE + PHOTO_CHUNK_HEADER_LEN;
 

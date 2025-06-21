@@ -52,6 +52,10 @@ void ServerHandler::onDisconnect(BLEServer *server)
     logger_printf("[BLE] Client disconnected. Restarting advertising.\n");
     set_led_status(LED_STATUS_DISCONNECTED); // Set LED to orange
 
+    // Reset the chunk size to the default safe value for the next connection.
+    g_photo_chunk_payload_size = 20; // Default to a safe size for 23-byte MTU
+    logger_printf("[BLE] Photo chunk payload size reset to %d bytes.\n", g_photo_chunk_payload_size);
+
     // Suspend tasks to save power
     if (photo_streaming_task_handle != nullptr) {
         vTaskSuspend(photo_streaming_task_handle);
@@ -71,6 +75,13 @@ void ServerHandler::onDisconnect(BLEServer *server)
     deinit_microphone();
     logger_printf("[PERIPH] Microphone de-initialized.\n");
     BLEDevice::startAdvertising(); // Restart advertising
+}
+
+void ServerHandler::onMtuChanged(BLEServer *pServer, esp_ble_gatts_cb_param_t *param) {
+    logger_printf("[BLE] MTU changed to: %d\n", param->mtu.mtu);
+    // The payload size is the MTU minus 3 bytes for the ATT header and 2 bytes for our chunk header.
+    g_photo_chunk_payload_size = param->mtu.mtu - 3 - PHOTO_CHUNK_HEADER_LEN;
+    logger_printf("[BLE] Payload chunk size updated to: %d bytes\n", g_photo_chunk_payload_size);
 }
 
 // --- PhotoControlCallback Class Implementation ---
