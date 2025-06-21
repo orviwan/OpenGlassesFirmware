@@ -122,12 +122,42 @@ Once photo capture is triggered, the device sends the JPEG image data in chunks 
         *   Header (2 bytes): `0xFE 0xFE`
         *   Payload (4 bytes): The 32-bit CRC32 checksum, sent in little-endian byte order.
     *   Your client should calculate the CRC32 of the reassembled JPEG data and compare it against this received value. If they match, the image was received correctly. If not, the image may be corrupted.
+    *   **Note on CRC32 Implementation:** The firmware uses the standard hardware-accelerated CRC32 algorithm from the ESP-IDF (`esp_rom_crc32_le`). For a compatible client-side implementation in Python, the `zlib.crc32()` function should be used, as it matches the firmware's output directly.
 
 **Client best practice:**
 - After connecting, request the highest MTU your platform supports (e.g., 247 or 512) to maximize throughput.
 - Always handle notification payloads up to (MTU - 3) bytes.
 
-## Advanced
+### BLE Photo Client
+
+A Python-based BLE client, `ble_photo_client.py`, is included in the repository to test the single-photo capture functionality. 
+
+**Prerequisites:**
+- Python 3.7+
+- `bleak` library
+
+**Installation:**
+
+```bash
+pip install bleak
+```
+
+**Usage:**
+
+Make sure the OpenGlasses device is powered on and advertising. Then run the script:
+
+```bash
+python ble_photo_client.py
+```
+
+The script will connect to the device, request a photo, receive the data, verify the checksum, and save the image as `received_photo.jpg` in the same directory.
+
+## Firmware Details
 - Modular code: see `src/audio_handler.cpp`, `audio_ulaw.cpp`, `photo_manager.cpp`
 - All streaming logic is non-blocking and runs in parallel tasks
 - See `blueprint.md` for detailed architecture
+
+
+## TODO
+- BLE firmware updates (https://github.com/gb88/BLEOTA)
+

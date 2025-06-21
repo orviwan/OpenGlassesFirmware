@@ -18,7 +18,7 @@ BLECharacteristic *g_photo_control_characteristic = nullptr;
 BLECharacteristic *g_audio_data_characteristic = nullptr;
 BLECharacteristic *g_battery_level_characteristic = nullptr; // This will be passed to battery_handler
 
-bool g_is_ble_connected = false;
+volatile bool g_is_ble_connected = false;
 
 static TaskHandle_t photo_streaming_task_handle = nullptr;
 static TaskHandle_t ulaw_streaming_task_handle = nullptr;
@@ -66,10 +66,10 @@ void ServerHandler::onDisconnect(BLEServer *server)
     reset_photo_manager_state();
 
     // De-initialize peripherals on disconnect
-    logger_printf("[PERIPH] De-initializing camera and microphone...\n");
-    deinit_camera();
+    logger_printf("[PERIPH] De-initializing microphone...\n");
+    // deinit_camera(); // DEBUG: Do not de-init camera to test stability
     deinit_microphone();
-    logger_printf("[PERIPH] Camera and microphone de-initialized.\n");
+    logger_printf("[PERIPH] Microphone de-initialized.\n");
     BLEDevice::startAdvertising(); // Restart advertising
 }
 
@@ -198,35 +198,26 @@ void photo_streaming_task(void *pvParameters) {
 
             unsigned long now = millis();
             if (now - last_log_time > 5000) {
-                logger_printf("[PHOTO][DEBUG] Connected: %d, Notifications: %d, Uploading: %d, Mode: %d\n", g_is_ble_connected, g_photo_notifications_enabled, g_is_photo_uploading, g_capture_mode);
+                logger_printf("[PHOTO_MGR] Uptime: %lus, Mode: %d, Uploading: %d, Ready: %d, Pending: %d\n",
+                              now / 1000, g_capture_mode, g_is_photo_uploading, g_is_photo_ready, g_single_shot_pending);
                 last_log_time = now;
             }
-
-            // The photo manager function now internally checks if notifications are enabled before capturing.
+            
             process_photo_capture_and_upload(now);
 
-            // Adjust delay based on state.
-            if (g_is_photo_uploading) {
-                vTaskDelay(pdMS_TO_TICKS(10)); // Short delay while actively sending chunks.
-            } else if (g_photo_notifications_enabled) {
-                vTaskDelay(pdMS_TO_TICKS(50)); // Medium delay when waiting for capture trigger (interval/single shot).
-            } else {
-                vTaskDelay(pdMS_TO_TICKS(100)); // Longer delay when connected but not subscribed.
-            }
         } else {
-            if (g_photo_notifications_enabled) {
-                g_photo_notifications_enabled = false; // Ensure flag is false when disconnected
-                logger_printf("[BLE] Photo data notifications status: DISABLED (disconnected)\n");
-            }
-            vTaskDelay(pdMS_TO_TICKS(500)); // Disconnected, sleep longer.
+            // If not connected, delay to prevent busy-waiting
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
+        // Add a delay here to prevent starving other tasks
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
 void start_photo_streaming_task() {
     if (photo_streaming_task_handle == nullptr) {
         xTaskCreatePinnedToCore(
-            photo_streaming_task, "PhotoStreamTask", 4096, NULL, 1, &photo_streaming_task_handle, 1);
+            photo_streaming_task, "PhotoStreamTask", 8192, NULL, 1, &photo_streaming_task_handle, 1);
         vTaskSuspend(photo_streaming_task_handle); // Suspend task immediately after creation
         logger_printf("[TASK] Created and suspended photo streaming task.\n");
     }

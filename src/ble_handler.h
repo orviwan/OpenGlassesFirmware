@@ -12,7 +12,7 @@ extern BLECharacteristic *g_photo_control_characteristic;
 extern BLECharacteristic *g_audio_data_characteristic;
 extern BLECharacteristic *g_battery_level_characteristic;
 
-extern bool g_is_ble_connected;
+extern volatile bool g_is_ble_connected;
 extern int g_photo_chunk_payload_size;
 
 // BLE Server Event Callbacks

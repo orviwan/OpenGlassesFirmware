@@ -52,6 +52,11 @@ The firmware is designed to be resilient to unexpected client disconnections. If
 
 This ensures that the device returns to a clean and predictable state, ready for the next client connection.
 
+## Camera Management
+- **Stable Initialization**: The camera is initialized once upon the first photo request and remains powered on to ensure stability and quick capture times. It is only de-initialized when the BLE client disconnects, saving power.
+- **Deadlock Prevention**: Camera access is managed by a mutex, and the code structure has been revised to prevent deadlocks that could previously occur during buffer release and de-initialization, ensuring reliable operation.
+- **VGA Resolution**: The camera operates at SVGA (800x600) resolution with JPEG compression for a balance of detail and file size.
+
 ## Power Management
 The firmware implements several power-saving features to maximize battery life:
 - **Deep Sleep Cycle:** To conserve power, if the device remains disconnected for 10 seconds, it enters a deep sleep mode for 10 seconds. After waking, it will advertise for 10 seconds, waiting for a new connection. This cycle repeats to balance power saving and availability.
@@ -86,6 +91,7 @@ Device sends JPEG image data in chunks via notifications:
 3.  **CRC32 Checksum (6 bytes total, sent after End-of-Photo):**
     *   Header (2 bytes): `0xFE 0xFE`.
     *   Payload (4 bytes): 32-bit CRC32 of the entire JPEG image (little-endian). Client should verify this.
+    *   **Note on CRC32 Implementation:** The firmware uses the standard hardware-accelerated CRC32 from the ESP-IDF (`esp_rom_crc32_le`). For a compatible client-side implementation in Python, the `zlib.crc32()` function is recommended as it directly matches the firmware's output.
 
 **Client best practice:**
 - After connecting, request the highest MTU your platform supports (e.g., 247 or 512) to maximize throughput.

@@ -77,4 +77,7 @@ constexpr unsigned long PHOTO_INTERVAL_MS = 5000;                // 5 seconds
 // Camera warm-up: number of frames to discard after init (for AWB/gain to settle)
 constexpr int CAMERA_WARMUP_FRAMES = 5;
 
+// Number of frames to discard before taking a photo (helps camera sensor stabilize)
+#define CAMERA_WARMUP_FRAMES 2
+
 #endif // CONFIG_H
