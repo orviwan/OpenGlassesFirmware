@@ -1,2 +1,63 @@
 .DS_Store
 /*.jpg
+
+# C/C++ build files
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.a
+*.so
+*.lib
+*.dll
+build/
+*.out
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Arduino
+*.eep
+*.elf
+*.hex
+*.map
+*.eeprom
+.build/

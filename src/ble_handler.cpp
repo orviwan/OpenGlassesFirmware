@@ -184,12 +184,15 @@ void configure_ble()
     advertising->setScanResponse(true);
     // Set advertising interval for power efficiency. A slower interval saves significant
     // power when the device is idle and waiting for a connection.
-    // The value is in units of 0.625ms. 0x640 = 1600 -> 1600 * 0.625ms = 1000ms.
-    advertising->setMinInterval(0x640); // 1000ms
-    advertising->setMaxInterval(0x640); // 1000ms
+    // The value is in units of 0.625ms. 0x0A0 = 160 -> 160 * 0.625ms = 100ms.
+    advertising->setMinInterval(0x0A0); // 100ms
+    advertising->setMaxInterval(0x0A0); // 100ms
+    // Set preferred connection parameters for lower latency
+    advertising->setMinPreferred(0x06);  // 7.5ms
+    advertising->setMaxPreferred(0x10);  // 20ms
     BLEDevice::startAdvertising();
 
-    logger_printf("[BLE] Initialized and advertising started (1s interval).\n");
+    logger_printf("[BLE] Initialized and advertising started (100ms interval).\n");
 }
 
 void photo_streaming_task(void *pvParameters) {
