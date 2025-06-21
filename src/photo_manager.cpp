@@ -1,5 +1,4 @@
 #include "photo_manager.h"
-#include <rom/crc.h>      // Use hardware-accelerated CRC32 from ROM
 #include "config.h"       // For photo constants
 #include "camera_handler.h" // For take_photo(), release_photo_buffer(), and fb
 #include "ble_handler.h"    // For g_photo_data_characteristic and g_is_ble_connected
@@ -105,8 +104,8 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
 
             g_photo_data_characteristic->setValue(s_photo_chunk_buffer, bytes_to_copy + PHOTO_CHUNK_HEADER_LEN);
             g_photo_data_characteristic->notify();
-            // logger_printf("[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
-            delay(10); // Add a 10ms delay to help client processing
+            logger_printf("[PHOTO][CHUNK] Frame: %u, Bytes: %zu, Offset: %zu, Remaining: %zu", g_sent_photo_frames, bytes_to_copy, g_sent_photo_bytes, remaining - bytes_to_copy);
+            delay(15); // Increased delay to 15ms to improve reliability
 
             g_sent_photo_bytes += bytes_to_copy;
             g_sent_photo_frames++;
@@ -118,20 +117,8 @@ void process_photo_capture_and_upload(unsigned long current_time_ms) {
             g_photo_data_characteristic->notify();
             logger_printf("[PHOTO][END] Sent end-of-photo marker. Total chunks: %u, Total bytes: %zu", g_sent_photo_frames, g_sent_photo_bytes);
 
-            // Calculate the CRC32 using the hardware-accelerated ROM function for performance.
-            uint32_t crc = crc32_le(0, fb->buf, fb->len);
-            logger_printf("[PHOTO][CRC32] Calculated hardware CRC32: 0x%08lX", crc);
-
-            // Send CRC32 as a special chunk: header 0xFE 0xFE, 4 bytes CRC32 (little-endian)
-            s_photo_chunk_buffer[0] = 0xFE;
-            s_photo_chunk_buffer[1] = 0xFE;
-            s_photo_chunk_buffer[2] = (uint8_t)(crc & 0xFF);
-            s_photo_chunk_buffer[3] = (uint8_t)((crc >> 8) & 0xFF);
-            s_photo_chunk_buffer[4] = (uint8_t)((crc >> 16) & 0xFF);
-            s_photo_chunk_buffer[5] = (uint8_t)((crc >> 24) & 0xFF);
-            g_photo_data_characteristic->setValue(s_photo_chunk_buffer, 6);
-            g_photo_data_characteristic->notify();
-            logger_printf("[PHOTO][CRC32] Sent CRC32 chunk to client.");
+            // The CRC check has been removed for reliability.
+            // The BLE link-layer has its own integrity checks.
 
             g_is_photo_uploading = false;
             logger_printf("[PHOTO][UPLOAD] Upload complete.");

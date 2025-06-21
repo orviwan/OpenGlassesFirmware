@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLE2902.h> // For BLE2902 descriptor
+#include <esp_gatts_api.h> // For esp_ble_gatts_cb_param_t
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -22,7 +23,7 @@ volatile bool g_is_ble_connected = false;
 
 static TaskHandle_t photo_streaming_task_handle = nullptr;
 static TaskHandle_t ulaw_streaming_task_handle = nullptr;
-int g_photo_chunk_payload_size = 200; // Default, will be set dynamically
+int g_photo_chunk_payload_size = 20; // Default to a safe size for 23-byte MTU
 
 // --- ServerHandler Class Implementation ---
 void ServerHandler::onConnect(BLEServer *server)
@@ -30,11 +31,10 @@ void ServerHandler::onConnect(BLEServer *server)
     g_is_ble_connected = true;
     logger_printf("[BLE] Client connected.\n");
     set_led_status(LED_STATUS_CONNECTED); // Set LED to green
-    // Dynamically set photo chunk size based on negotiated MTU
-    int mtu = BLEDevice::getMTU();
-    g_photo_chunk_payload_size = mtu > 23 ? (mtu - 3) : 20;
-    logger_printf("[BLE] Negotiated MTU: %d, photo chunk payload size set to: %d\n", mtu, g_photo_chunk_payload_size);
-    
+
+    // On connection, the chunk size is the default until MTU is negotiated.
+    logger_printf("[BLE] Using default chunk size: %d\n", g_photo_chunk_payload_size);
+
     // Resume tasks for active connection
     if (photo_streaming_task_handle != nullptr) {
         vTaskResume(photo_streaming_task_handle);
@@ -101,7 +101,6 @@ void configure_ble()
     logger_printf("\n");
     logger_printf("[BLE] Initializing...\n");
     BLEDevice::init(DEVICE_MODEL_NUMBER); // Device name
-    BLEDevice::setMTU(247); // Increase MTU for higher throughput
     BLEServer *server = BLEDevice::createServer();
     server->setCallbacks(new ServerHandler());
 

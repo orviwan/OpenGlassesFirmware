@@ -17,8 +17,14 @@ This directory contains a Python script (`ble_photo_client.py`) for testing the 
 
 1.  **Install Python:** Make sure you have Python 3.7 or newer installed. You can check your version with `python3 --version`.
 
-2.  **Install Dependencies:** Install the required `bleak` library using `pip3`.
+2.  **Install Dependencies:** Install the required `bleak` library using `pip3`. An up-to-date version is required for MTU negotiation to work correctly.
 
+    If you have an older version of `bleak` installed, upgrade it to the latest version:
+    ```bash
+    pip3 install --upgrade bleak
+    ```
+
+    If you do not have it installed, run:
     ```bash
     pip3 install bleak
     ```
