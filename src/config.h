@@ -10,10 +10,17 @@
 // Audio
 // ---------------------------------------------------------------------------------
 constexpr int FRAME_SIZE = 80;      // Number of audio samples per frame (for 8kHz, 10ms packets)
-constexpr int SAMPLE_RATE = 8000;   // Audio sample rate in Hz (8kHz for I2S)
+constexpr int SAMPLE_RATE = 16000;  // Audio sample rate in Hz (16kHz for PDM mic)
 constexpr int SAMPLE_BITS = 16;     // Audio sample bit depth (16-bit)
 constexpr int VOLUME_GAIN = 2;      // Audio volume gain factor (applied as bit shift: e.g., 1 for 2x, 2 for 4x gain)
 constexpr size_t AUDIO_FRAME_HEADER_LEN = 3; // Bytes for audio frame header
+
+// ----------------------------------------------------------------------------
+// I2S PINS (for XIAO ESP32S3 Sense)
+// ----------------------------------------------------------------------------
+#define I2S_WS_PIN 42
+#define I2S_SD_PIN 40
+#define I2S_SCK_PIN 41
 
 // ---------------------------------------------------------------------------------
 // BLE Service and Characteristic UUIDs
@@ -40,9 +47,12 @@ static BLEUUID AUDIO_CODEC_ULAW_UUID("19b10001-e8f2-537e-4f6c-d104768a1214");
 // ---------------------------------------------------------------------------------
 constexpr const char* PHOTO_DATA_USER_DESCRIPTION = "Photo JPEG Data Stream";
 constexpr const char* PHOTO_CONTROL_USER_DESCRIPTION = "Photo Capture Control";
-constexpr const char* AUDIO_ULAW_USER_DESCRIPTION = "μ-law (G.711) Audio Stream";
-// Note: Battery Level is a standard characteristic, but a user description can still be added.
-constexpr const char* BATTERY_LEVEL_USER_DESCRIPTION = "Device Battery Level";
+constexpr const char* AUDIO_ULAW_USER_DESCRIPTION = "u-law encoded audio stream";
+
+// ---------------------------------------------------------------------------------
+// BLE Streaming Configuration
+// ---------------------------------------------------------------------------------
+constexpr int AUDIO_BLE_PACKET_SIZE = 20; // Max bytes per BLE notification (must be <= MTU-3)
 
 // ---------------------------------------------------------------------------------
 // Device Information Strings
@@ -70,6 +80,7 @@ constexpr unsigned long DEEP_SLEEP_DISCONNECT_DELAY_MS = 600000; // 10 minutes
 constexpr unsigned long DEEP_SLEEP_WAKE_INTERVAL_MS = 10000;     // 10 seconds
 constexpr unsigned long DEBUG_LOG_INTERVAL_MS = 10000;           // 10 seconds
 constexpr unsigned long PHOTO_INTERVAL_MS = 5000;                // 5 seconds
+constexpr unsigned long ULAW_TASK_DELAY_MS = 10;                 // Delay for the audio streaming task loop
 
 // ---------------------------------------------------------------------------------
 // Pin Definitions

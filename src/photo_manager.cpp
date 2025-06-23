@@ -15,8 +15,11 @@ unsigned long g_last_capture_time_ms = 0;
 size_t g_sent_photo_bytes = 0;
 uint16_t g_sent_photo_frames = 0;
 bool g_is_photo_uploading = false;
-volatile bool g_photo_notifications_enabled = false;
+// The g_photo_notifications_enabled flag is no longer needed as the task is managed by subscription.
 volatile bool g_single_shot_pending = false;
+
+// Task handle for the photo streaming task, moved here from ble_handler.cpp
+static TaskHandle_t photo_streaming_task_handle = nullptr;
 
 void start_photo_upload(); // Forward declaration
 
@@ -66,7 +69,8 @@ void handle_photo_control(int8_t control_value) {
 
 void process_photo_capture_and_upload(unsigned long current_time_ms) {
     // --- Step 1: Request a photo from the camera task if needed ---
-    if (!g_is_photo_uploading && g_is_ble_connected && g_photo_notifications_enabled) {
+    // The check for g_photo_notifications_enabled is removed, as this task only runs when subscribed.
+    if (!g_is_photo_uploading && g_is_ble_connected) {
         bool trigger_capture = false;
         if (g_single_shot_pending) {
             trigger_capture = true;
@@ -149,5 +153,50 @@ void start_photo_upload() {
     } else {
         logger_printf("[PHOTO] ERROR: Cannot start upload, no valid photo buffer.\n");
         g_is_photo_uploading = false;
+    }
+}
+
+// The photo streaming task, moved from ble_handler.cpp and simplified for on-demand operation.
+void photo_streaming_task(void *pvParameters) {
+    logger_printf("[TASK] Photo streaming task is running.\n");
+    while (true) {
+        // The task is suspended when not subscribed, so we just process photos when running.
+        if (g_is_ble_connected) {
+            process_photo_capture_and_upload(millis());
+        } else {
+            // If not connected, delay. The task will be suspended on disconnect anyway.
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        // Yield to other tasks
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+// Starts or resumes the photo streaming task.
+void start_photo_streaming_task() {
+    if (photo_streaming_task_handle == nullptr) {
+        logger_printf("[TASK] Creating photo streaming task.\n");
+        xTaskCreatePinnedToCore(
+            photo_streaming_task,       // Task function
+            "PhotoStreamTask",          // Name of the task
+            8192,                       // Stack size in words
+            NULL,                       // Task input parameter
+            1,                          // Priority of the task
+            &photo_streaming_task_handle, // Task handle
+            1                           // Core where the task should run
+        );
+    } else {
+        logger_printf("[TASK] Resuming photo streaming task.\n");
+        vTaskResume(photo_streaming_task_handle);
+    }
+}
+
+// Suspends the photo streaming task and resets the photo manager state.
+void stop_photo_streaming_task() {
+    if (photo_streaming_task_handle != nullptr) {
+        logger_printf("[TASK] Suspending photo streaming task.\n");
+        vTaskSuspend(photo_streaming_task_handle);
+        // Also reset the photo manager state to stop any ongoing captures/uploads
+        reset_photo_manager_state();
     }
 }

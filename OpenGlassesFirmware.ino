@@ -11,7 +11,12 @@
 #include "src/photo_manager.h"   // For photo capture logic and uploading
 #include "src/battery_handler.h" // For battery level monitoring
 #include "src/led_handler.h"     // For onboard LED control
-#include "src/logger.h"          // For thread-safe logging
+#include "src/logger.h"
+
+// Forward declarations for FreeRTOS tasks are now handled in their respective modules
+
+// Task Handles
+// Task handles are now managed within the modules that create the tasks.
 
 // Helper to print pretty uptime (hh:mm:ss)
 String prettyUptime(unsigned long ms)
@@ -78,8 +83,8 @@ void setup()
     configure_ble();
     initialize_photo_manager();                                 // Initializes photo buffer and default interval
     initialize_battery_handler(g_battery_level_characteristic); // Pass the BLE characteristic
-    start_ulaw_streaming_task();                                // Start μ-law audio streaming task
-    start_photo_streaming_task();                               // Start photo streaming task
+    // The audio and photo streaming tasks are now started on-demand when a client subscribes to their respective characteristics
+    // start_photo_streaming_task();
     start_camera_task();                                       // Start the new dedicated camera task
     // Set initial battery level after BLE characteristic is available
     update_battery_level();
@@ -167,3 +172,6 @@ void loop()
         vTaskDelay(pdMS_TO_TICKS(500)); // Idle delay
     }
 }
+
+// Task creation is now handled within the relevant modules (e.g., audio_ulaw.cpp)
+// to better encapsulate functionality.

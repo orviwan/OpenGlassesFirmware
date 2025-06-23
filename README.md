@@ -40,20 +40,38 @@ The firmware uses a custom BLE service for its core functionalities.
 
 ## Client Implementation
 
-A Python client script is provided in the `client` directory (`ble_photo_client.py`) that demonstrates how to connect to the device, request a photo, and receive the data.
+Python client scripts are provided in the `client/` directory to demonstrate how to interact with the device's BLE services.
+
+-   **`ble_photo_client.py`**: A client to request and receive a single photo. It saves the image as a timestamped JPEG file and prints transfer statistics.
+-   **`ble_audio_client.py`**: A client to record 20 seconds of audio. It saves the stream as a timestamped WAV file and prints session statistics.
 
 ### Dependencies
 
-- `bleak`: Asynchronous BLE client library for Python.
+The only external dependency for the clients is the `bleak` library, which can be installed via pip:
+
+```bash
+pip3 install bleak
+```
 
 ### Usage
 
-1.  Run the script:
-    ```sh
-    python client/ble_photo_client.py
-    ```
-2.  The script will scan for the "OpenGlass" device, connect to it, and request a photo.
-3.  The received photo will be saved as `received_photo.jpg` in the same directory.
+First, ensure your OpenGlass device is powered on and advertising.
+
+**To test photo capture:**
+
+```bash
+python3 client/ble_photo_client.py
+```
+
+The script will connect, request a photo, and save it in the `client/` directory.
+
+**To test audio recording:**
+
+```bash
+python3 client/ble_audio_client.py
+```
+
+The script will connect, record 20 seconds of audio, and save it as a WAV file in the `client/` directory.
 
 ## Building the Firmware
 

@@ -20,7 +20,6 @@ extern unsigned long g_last_capture_time_ms;
 extern size_t g_sent_photo_bytes;
 extern uint16_t g_sent_photo_frames;
 extern bool g_is_photo_uploading;
-extern volatile bool g_photo_notifications_enabled; // True if the client has subscribed to photo data
 extern volatile bool g_single_shot_pending; // Flag for single photo request pending
 
 extern uint8_t *s_photo_chunk_buffer;
@@ -30,6 +29,10 @@ void initialize_photo_manager();
 void handle_photo_control(int8_t control_value);
 void process_photo_capture_and_upload(unsigned long current_time_ms);
 void reset_photo_manager_state();
+void start_photo_upload();
 
+// Declarations for on-demand task control
+void start_photo_streaming_task();
+void stop_photo_streaming_task();
 
 #endif // PHOTO_MANAGER_H

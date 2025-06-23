@@ -21,8 +21,7 @@ BLECharacteristic *g_battery_level_characteristic = nullptr; // This will be pas
 
 volatile bool g_is_ble_connected = false;
 
-static TaskHandle_t photo_streaming_task_handle = nullptr;
-static TaskHandle_t ulaw_streaming_task_handle = nullptr;
+// The photo streaming task handle and implementation are now moved to photo_manager.cpp
 int g_photo_chunk_payload_size = 20; // Default to a safe size for 23-byte MTU
 
 // --- ServerHandler Class Implementation ---
@@ -35,15 +34,14 @@ void ServerHandler::onConnect(BLEServer *server)
     // On connection, the chunk size is the default until MTU is negotiated.
     logger_printf("[BLE] Using default chunk size: %d\n", g_photo_chunk_payload_size);
 
-    // Resume tasks for active connection
+    // Tasks are now managed by their own logic (e.g., subscription status or commands)
+    // and should not be blindly resumed on connection.
+    /*
     if (photo_streaming_task_handle != nullptr) {
         vTaskResume(photo_streaming_task_handle);
         logger_printf("[TASK] Resumed photo streaming task.\n");
     }
-    if (ulaw_streaming_task_handle != nullptr) {
-        vTaskResume(ulaw_streaming_task_handle);
-        logger_printf("[TASK] Resumed u-law streaming task.\n");
-    }
+    */
 }
 
 void ServerHandler::onDisconnect(BLEServer *server)
@@ -52,35 +50,18 @@ void ServerHandler::onDisconnect(BLEServer *server)
     logger_printf("[BLE] Client disconnected. Restarting advertising.\n");
     set_led_status(LED_STATUS_DISCONNECTED); // Set LED to orange
 
-    // Reset the chunk size to the default safe value for the next connection.
-    g_photo_chunk_payload_size = 20; // Default to a safe size for 23-byte MTU
-    logger_printf("[BLE] Photo chunk payload size reset to %d bytes.\n", g_photo_chunk_payload_size);
+    // The photo manager state is now reset by its own subscription callback (stop_photo_streaming_task)
+    // when the client unsubscribes or disconnects. Removing it from here prevents confusing logs.
+    // reset_photo_manager_state();
 
-    // Suspend tasks to save power
-    if (photo_streaming_task_handle != nullptr) {
-        vTaskSuspend(photo_streaming_task_handle);
-        logger_printf("[TASK] Suspended photo streaming task.\n");
-    }
-    if (ulaw_streaming_task_handle != nullptr) {
-        vTaskSuspend(ulaw_streaming_task_handle);
-        logger_printf("[TASK] Suspended u-law streaming task.\n");
-    }
-
-    // Reset the photo manager state to stop any ongoing processes
-    reset_photo_manager_state();
-
-    // De-initialize peripherals on disconnect
-    logger_printf("[PERIPH] De-initializing microphone...\n");
-    // deinit_camera(); // DEBUG: Do not de-init camera to test stability
-    deinit_microphone();
-    logger_printf("[PERIPH] Microphone de-initialized.\n");
     BLEDevice::startAdvertising(); // Restart advertising
 }
 
-void ServerHandler::onMtuChanged(BLEServer *pServer, esp_ble_gatts_cb_param_t *param) {
-    logger_printf("[BLE] MTU changed to: %d\n", param->mtu.mtu);
+void ServerHandler::onMtuChanged(BLEServer *pServer, void *param) {
+    esp_ble_gatts_cb_param_t* p = (esp_ble_gatts_cb_param_t*)param;
+    logger_printf("[BLE] MTU changed to: %d\n", p->mtu.mtu);
     // The payload size is the MTU minus 3 bytes for the ATT header and 2 bytes for our chunk header.
-    g_photo_chunk_payload_size = param->mtu.mtu - 3 - PHOTO_CHUNK_HEADER_LEN;
+    g_photo_chunk_payload_size = p->mtu.mtu - 3 - PHOTO_CHUNK_HEADER_LEN;
     logger_printf("[BLE] Payload chunk size updated to: %d bytes\n", g_photo_chunk_payload_size);
 }
 
@@ -112,7 +93,7 @@ void configure_ble()
     logger_printf("\n");
     logger_printf("[BLE] Initializing...\n");
     BLEDevice::init(DEVICE_MODEL_NUMBER); // Device name
-    BLEDevice::setMTU(247); // Request a larger MTU
+    // BLEDevice::setMTU(247); // Let's use the default MTU for now to test compatibility
     BLEServer *server = BLEDevice::createServer();
     server->setCallbacks(new ServerHandler());
 
@@ -123,7 +104,11 @@ void configure_ble()
     g_photo_data_characteristic = service->createCharacteristic(
         PHOTO_DATA_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-    g_photo_data_characteristic->addDescriptor(new BLE2902()); // For notifications
+    
+    BLE2902* pPhoto2902 = new BLE2902();
+    pPhoto2902->setCallbacks(new PhotoDescriptorCallback());
+    g_photo_data_characteristic->addDescriptor(pPhoto2902);
+
     BLEDescriptor *pPhotoDataDesc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
     pPhotoDataDesc->setValue(PHOTO_DATA_USER_DESCRIPTION);
     g_photo_data_characteristic->addDescriptor(pPhotoDataDesc);
@@ -144,7 +129,11 @@ void configure_ble()
         AUDIO_CODEC_ULAW_UUID,
         BLECharacteristic::PROPERTY_NOTIFY
     );
-    g_audio_data_characteristic->addDescriptor(new BLE2902()); // For notifications
+
+    BLE2902* pAudio2902 = new BLE2902();
+    pAudio2902->setCallbacks(new AudioDescriptorCallback());
+    g_audio_data_characteristic->addDescriptor(pAudio2902);
+
     BLEDescriptor *pAudioUlawDesc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
     pAudioUlawDesc->setValue(AUDIO_ULAW_USER_DESCRIPTION);
     g_audio_data_characteristic->addDescriptor(pAudioUlawDesc);
@@ -195,86 +184,40 @@ void configure_ble()
     logger_printf("[BLE] Initialized and advertising started (100ms interval).\n");
 }
 
-void photo_streaming_task(void *pvParameters) {
-    unsigned long last_log_time = 0;
-    while (true) {
-        if (g_is_ble_connected && g_photo_data_characteristic) {
-            BLE2902* desc = (BLE2902*)g_photo_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-            
-            // Update the global flag based on the descriptor's notification status.
-            g_photo_notifications_enabled = (desc && desc->getNotifications());
-            
-            static bool last_notifications_enabled_status = false;
-            if (g_photo_notifications_enabled != last_notifications_enabled_status) {
-                logger_printf("[BLE] Photo data notifications status: %s\n", g_photo_notifications_enabled ? "ENABLED" : "DISABLED");
-                last_notifications_enabled_status = g_photo_notifications_enabled;
-            }
-
-            unsigned long now = millis();
-            if (now - last_log_time > 5000) {
-                logger_printf("[PHOTO_MGR] Uptime: %lus, Mode: %d, Uploading: %d, Ready: %d, Pending: %d\n",
-                              now / 1000, g_capture_mode, g_is_photo_uploading, g_is_photo_ready, g_single_shot_pending);
-                last_log_time = now;
-            }
-            
-            process_photo_capture_and_upload(now);
-
-        } else {
-            // If not connected, delay to prevent busy-waiting
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-        // Add a delay here to prevent starving other tasks
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
-
-void start_photo_streaming_task() {
-    if (photo_streaming_task_handle == nullptr) {
-        xTaskCreatePinnedToCore(
-            photo_streaming_task, "PhotoStreamTask", 8192, NULL, 1, &photo_streaming_task_handle, 1);
-        vTaskSuspend(photo_streaming_task_handle); // Suspend task immediately after creation
-        logger_printf("[TASK] Created and suspended photo streaming task.\n");
-    }
-}
-
-void ulaw_streaming_task(void *pvParameters) {
-    static bool mic_active = false;
-    while (true) {
-        if (g_is_ble_connected && g_audio_data_characteristic) {
-            BLE2902* desc = (BLE2902*)g_audio_data_characteristic->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-            if (desc && desc->getNotifications()) {
-                if (!mic_active) {
-                    configure_microphone();
-                    mic_active = true;
-                }
-                set_led_status(LED_STATUS_AUDIO_STREAMING); // Set LED to blue
-                process_and_send_ulaw_audio(g_audio_data_characteristic);
-                vTaskDelay(pdMS_TO_TICKS(5)); // Active streaming delay
-            } else {
-                if (mic_active) {
-                    deinit_microphone();
-                    mic_active = false;
-                }
-                set_led_status(LED_STATUS_CONNECTED); // Revert LED state
-                vTaskDelay(pdMS_TO_TICKS(100)); // Connected but notifications disabled
-            }
-        } else {
-            if (mic_active) {
-                deinit_microphone();
-                mic_active = false;
-            }
-            set_led_status(LED_STATUS_DISCONNECTED); // Revert LED state
-            vTaskDelay(pdMS_TO_TICKS(500)); // Disconnected, sleep longer
+// --- PhotoDescriptorCallback Class Implementation ---
+void PhotoDescriptorCallback::onWrite(BLEDescriptor* pDescriptor) {
+    uint8_t* pValue = pDescriptor->getValue();
+    if (pDescriptor->getLength() == 2) {
+        uint16_t ccc_value = (pValue[1] << 8) | pValue[0];
+        if (ccc_value == 0x0001) {
+            // Notifications enabled
+            logger_printf("[BLE] Photo notifications ENABLED. Starting photo stream.\n");
+            start_photo_streaming_task();
+        } else if (ccc_value == 0x0000) {
+            // Notifications disabled
+            logger_printf("[BLE] Photo notifications DISABLED. Stopping photo stream.\n");
+            stop_photo_streaming_task();
         }
     }
 }
 
-void start_ulaw_streaming_task() {
-    if (ulaw_streaming_task_handle == nullptr) {
-        xTaskCreatePinnedToCore(
-            ulaw_streaming_task, "ULawStreamTask", 4096, NULL, 1, &ulaw_streaming_task_handle, 1);
-        vTaskSuspend(ulaw_streaming_task_handle); // Suspend task immediately after creation
-        logger_printf("[TASK] Created and suspended u-law streaming task.\n");
+// --- AudioDescriptorCallback Class Implementation ---
+void AudioDescriptorCallback::onWrite(BLEDescriptor* pDescriptor) {
+    uint8_t* pValue = pDescriptor->getValue();
+    if (pDescriptor->getLength() == 2) {
+        uint16_t ccc_value = (pValue[1] << 8) | pValue[0];
+        if (ccc_value == 0x0001) {
+            // Notifications enabled
+            logger_printf("[BLE] Audio notifications ENABLED. Starting audio stream.\n");
+            start_ulaw_streaming_task();
+        } else if (ccc_value == 0x0000) {
+            // Notifications disabled
+            logger_printf("[BLE] Audio notifications DISABLED. Stopping audio stream.\n");
+            stop_ulaw_streaming_task();
+        }
     }
 }
+
+// The photo_streaming_task and its start function have been moved to photo_manager.cpp
+// to consolidate all photo-related logic.
 

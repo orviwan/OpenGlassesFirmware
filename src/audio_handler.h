@@ -4,9 +4,10 @@
 #include <stddef.h> // For size_t
 #include <stdint.h> // For uint8_t, uint16_t
 
+extern uint8_t *s_i2s_recording_buffer;
+
 // Buffers used by audio processing - can be extern if needed by other modules,
 // or kept static within audio_handler.cpp if not. For now, keep them internal.
-extern uint8_t *s_i2s_recording_buffer; 
 extern uint8_t *s_audio_packet_buffer;
 
 // External declaration for global audio frame count
