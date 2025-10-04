@@ -1,6 +1,7 @@
 #include "command_handler.h"
 #include "audio_streamer.h"
 #include "photo_handler.h"
+#include "wifi_handler.h"
 #include "logger.h"
 #include "state_handler.h"
 
@@ -41,13 +42,11 @@ void handle_device_command(const std::string& value) {
             break;
         case 0x20: // Get Wi-Fi Status
             logger_printf("[CMD] Command: Get Wi-Fi Status received\n");
-            set_current_state(STATE_WIFI_ACTIVATING);
+            start_wifi_hotspot();
             break;
         case 0x21: // Shutdown Wi-Fi Mode
             logger_printf("[CMD] Command: Shutdown Wi-Fi Mode\n");
-            if (get_current_state() == STATE_STREAMING_AV_WIFI || get_current_state() == STATE_WIFI_ACTIVATING) {
-                set_current_state(STATE_CONNECTED_BLE);
-            }
+            stop_wifi_hotspot();
             break;
         case 0xFE: // Reboot Device
             logger_printf("[CMD] Command: Reboot Device\n");

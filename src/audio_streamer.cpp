@@ -3,6 +3,7 @@
 #include "config.h"
 #include "state_handler.h"
 #include "ble_handler.h"
+#include "wifi_handler.h"
 #include <driver/i2s.h>
 
 TaskHandle_t g_audio_task_handle = NULL;
@@ -38,31 +39,33 @@ void audio_streaming_task(void *pvParameters) {
     uint8_t buffer[1024];
 
     while (true) {
-        if (get_current_state() != STATE_STREAMING_AUDIO_BLE) {
+        if (get_current_state() != STATE_STREAMING_AUDIO_BLE && get_current_state() != STATE_STREAMING_AV_WIFI) {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
-        while (get_current_state() == STATE_STREAMING_AUDIO_BLE) {
-            i2s_read(I2S_NUM_0, buffer, sizeof(buffer), &bytes_read, portMAX_DELAY);
-            if (bytes_read > 0 && is_ble_connected()) {
+        i2s_read(I2S_NUM_0, buffer, sizeof(buffer), &bytes_read, portMAX_DELAY);
+
+        if (bytes_read > 0) {
+            if (get_current_state() == STATE_STREAMING_AUDIO_BLE && is_ble_connected()) {
                 notify_audio_data(buffer, bytes_read);
-            } else if (!is_ble_connected()) {
-                log_message("BLE disconnected, stopping audio stream.");
-                set_current_state(STATE_IDLE);
-                break; 
+            } else if (get_current_state() == STATE_STREAMING_AV_WIFI) {
+                // This function needs to be created in wifi_handler
+                send_audio_data_to_wifi_clients(buffer, bytes_read);
             }
         }
     }
 }
 
 void start_audio_stream() {
-    if (get_current_state() != STATE_CONNECTED_BLE) {
-        log_message("Cannot start audio stream, not in CONNECTED_BLE state.");
+    if (get_current_state() != STATE_CONNECTED_BLE && get_current_state() != STATE_STREAMING_AV_WIFI) {
+        log_message("Cannot start audio stream, invalid state.");
         return;
     }
     log_message("Starting audio stream");
-    set_current_state(STATE_STREAMING_AUDIO_BLE);
+    if(get_current_state() == STATE_CONNECTED_BLE) {
+        set_current_state(STATE_STREAMING_AUDIO_BLE);
+    }
 
     if (g_audio_task_handle == NULL) {
         xTaskCreate(
@@ -77,10 +80,14 @@ void start_audio_stream() {
 }
 
 void stop_audio_stream() {
-    if (get_current_state() != STATE_STREAMING_AUDIO_BLE) {
-        log_message("Cannot stop audio stream, not in STREAMING_AUDIO_BLE state.");
+    if (get_current_state() != STATE_STREAMING_AUDIO_BLE && get_current_state() != STATE_STREAMING_AV_WIFI) {
+        log_message("Cannot stop audio stream, not in a streaming state.");
         return;
     }
     log_message("Stopping audio stream");
-    set_current_state(STATE_CONNECTED_BLE);
+    if(get_current_state() == STATE_STREAMING_AUDIO_BLE) {
+        set_current_state(STATE_CONNECTED_BLE);
+    } else {
+        set_current_state(STATE_STREAMING_AV_WIFI); // Or some other appropriate state
+    }
 }

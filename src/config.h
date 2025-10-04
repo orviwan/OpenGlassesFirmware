@@ -88,6 +88,12 @@ constexpr unsigned long ULAW_TASK_DELAY_MS = 10;                 // Delay for th
 // ---------------------------------------------------------------------------------
 #define PIN_LED 21 // single-color orange user LED
 
+// ---------------------------------------------------------------------------------
+// Wi-Fi Configuration
+// ---------------------------------------------------------------------------------
+#define WIFI_SSID "OpenGlasses"
+#define WIFI_PASSWORD "12345678"
+
 // Camera warm-up: number of frames to discard after init (for AWB/gain to settle)
 constexpr int CAMERA_WARMUP_FRAMES = 5;
 
