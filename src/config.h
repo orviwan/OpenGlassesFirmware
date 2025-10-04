@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <BLEUUID.h> // For BLEUUID
+#include <NimBLEUUID.h>
 
 // Select camera model (this should ideally be a build flag)
 // #define CAMERA_MODEL_XIAO_ESP32S3
@@ -37,17 +37,17 @@ const uint16_t BATTERY_SERVICE_UUID = 0x180F;
 const uint16_t BATTERY_LEVEL_CHAR_UUID = 0x2A19;
 
 // Main Custom Service (OpenGlass Service)
-static BLEUUID SERVICE_UUID("19b10000-e8f2-537e-4f6c-d104768a1214");
-static BLEUUID PHOTO_DATA_UUID("19b10005-e8f2-537e-4f6c-d104768a1214");
-static BLEUUID PHOTO_CONTROL_UUID("19b10006-e8f2-537e-4f6c-d104768a1214");
-static BLEUUID AUDIO_CODEC_ULAW_UUID("19b10001-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID SERVICE_UUID("19b10000-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID DEVICE_CONTROL_UUID("19b10001-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID DEVICE_STATUS_UUID("19b10002-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID ERROR_NOTIFICATION_UUID("19b10003-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID AUDIO_DATA_UUID("19b10011-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID PHOTO_DATA_UUID("19b10012-e8f2-537e-4f6c-d104768a1214");
+static NimBLEUUID WIFI_ENDPOINT_UUID("19b10021-e8f2-537e-4f6c-d104768a1214");
 
 // ---------------------------------------------------------------------------------
 // BLE Characteristic User Descriptions (UUID 0x2901)
 // ---------------------------------------------------------------------------------
-constexpr const char* PHOTO_DATA_USER_DESCRIPTION = "Photo JPEG Data Stream";
-constexpr const char* PHOTO_CONTROL_USER_DESCRIPTION = "Photo Capture Control";
-constexpr const char* AUDIO_ULAW_USER_DESCRIPTION = "u-law encoded audio stream";
 constexpr const char* BATTERY_LEVEL_USER_DESCRIPTION = "Battery Level";
 
 // ---------------------------------------------------------------------------------
@@ -60,7 +60,7 @@ constexpr int AUDIO_BLE_PACKET_SIZE = 20; // Max bytes per BLE notification (mus
 // ---------------------------------------------------------------------------------
 constexpr const char* DEVICE_MANUFACTURER_NAME = "Based Hardware";
 constexpr const char* DEVICE_MODEL_NUMBER = "OpenGlass";
-constexpr const char* DEVICE_FIRMWARE_REVISION = "1.0.4"; // Updated version
+constexpr const char* DEVICE_FIRMWARE_REVISION = "2.0.0"; // Updated version
 constexpr const char* DEVICE_HARDWARE_REVISION = "Seeed Xiao ESP32S3 Sense";
 
 // ---------------------------------------------------------------------------------

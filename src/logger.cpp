@@ -40,3 +40,7 @@ void logger_printf(const char *format, ...) {
         xSemaphoreGive(s_log_mutex);
     }
 }
+
+void log_message(const char * format, ...) {
+    logger_printf(format);
+}
