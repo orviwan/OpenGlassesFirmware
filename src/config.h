@@ -4,7 +4,7 @@
 #include <BLEUUID.h> // For BLEUUID
 
 // Select camera model (this should ideally be a build flag)
-#define CAMERA_MODEL_XIAO_ESP32S3
+// #define CAMERA_MODEL_XIAO_ESP32S3
 
 // ---------------------------------------------------------------------------------
 // Audio
@@ -48,6 +48,7 @@ static BLEUUID AUDIO_CODEC_ULAW_UUID("19b10001-e8f2-537e-4f6c-d104768a1214");
 constexpr const char* PHOTO_DATA_USER_DESCRIPTION = "Photo JPEG Data Stream";
 constexpr const char* PHOTO_CONTROL_USER_DESCRIPTION = "Photo Capture Control";
 constexpr const char* AUDIO_ULAW_USER_DESCRIPTION = "u-law encoded audio stream";
+constexpr const char* BATTERY_LEVEL_USER_DESCRIPTION = "Battery Level";
 
 // ---------------------------------------------------------------------------------
 // BLE Streaming Configuration

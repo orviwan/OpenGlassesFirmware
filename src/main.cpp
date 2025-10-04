@@ -1,17 +1,15 @@
-// Main sketch file for OpenGlass firmware
-
 #include <Arduino.h>
 #include <esp_pm.h>
 
 // Include all custom module headers
-#include "src/config.h"          // For global constants and configurations
-#include "src/ble_handler.h"     // For BLE setup and handling
-#include "src/audio_handler.h"   // For microphone and audio processing
-#include "src/camera_handler.h"  // For camera operations
-#include "src/photo_manager.h"   // For photo capture logic and uploading
-#include "src/battery_handler.h" // For battery level monitoring
-#include "src/led_handler.h"     // For onboard LED control
-#include "src/logger.h"
+#include "config.h"
+#include "ble_handler.h"
+#include "audio_handler.h"
+#include "camera_handler.h"
+#include "photo_manager.h"
+#include "battery_handler.h"
+#include "led_handler.h"
+#include "logger.h"
 
 // Forward declarations for FreeRTOS tasks are now handled in their respective modules
 

@@ -55,6 +55,8 @@ Thumbs.db
 *.sln
 *.sw?
 
+.pio/
+
 # Arduino
 *.eep
 *.elf
