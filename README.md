@@ -1,6 +1,6 @@
 # OpenGlass Firmware
 
-This repository contains the firmware for the OpenGlass project, a wearable device based on the ESP32. The firmware provides BLE (Bluetooth Low Energy) services for streaming audio and photos.
+This repository contains the firmware for the OpenGlass project, a wearable device based on the ESP32. The firmware is built using the ESP-IDF framework and provides BLE (Bluetooth Low Energy) services for streaming audio and photos.
 
 ## Features
 
@@ -75,16 +75,35 @@ The script will connect, record 20 seconds of audio, and save it as a WAV file i
 
 ## Building the Firmware
 
-This project is built using the Arduino framework for the ESP32.
+This project is built using [PlatformIO](https://platformio.org/) with the ESP-IDF framework.
 
-### Dependencies
+### Prerequisites
 
-- ESP32 Arduino Core
+- [Visual Studio Code](https://code.visualstudio.com/)
+- [PlatformIO IDE extension](https://platformio.org/install/ide?install=vscode) for Visual Studio Code.
 
-### Setup
+### Setup & Compilation
 
-1.  Open the `OpenGlassesFirmware.ino` file in the Arduino IDE.
-2.  Select the correct ESP32 board from the Tools menu.
-3.  Install the required libraries.
-4.  Compile and upload the firmware to your device.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/OpenGlassesFirmware.git
+    cd OpenGlassesFirmware
+    ```
 
+2.  **Open the project in VS Code with PlatformIO:**
+    - Open Visual Studio Code.
+    - Click on the PlatformIO icon in the left-hand sidebar.
+    - Click "Open Project".
+    - Navigate to the cloned repository folder and click "Open".
+
+3.  **Build the firmware:**
+    - Once the project is open, PlatformIO will automatically install the required dependencies (ESP-IDF, toolchains, etc.).
+    - To build the firmware, click the "Build" button (the checkmark icon) in the PlatformIO toolbar at the bottom of the VS Code window.
+
+4.  **Upload the firmware:**
+    - Connect your OpenGlass device to your computer via USB.
+    - Put the device into bootloader mode (this may involve holding a specific button while plugging it in).
+    - Click the "Upload" button (the right-arrow icon) in the PlatformIO toolbar.
+
+5.  **Monitor the output:**
+    - To view the serial output from the device, click the "Monitor" button (the plug icon) in the PlatformIO toolbar.
