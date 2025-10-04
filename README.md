@@ -1,90 +1,73 @@
-# OpenGlass Firmware
+# OpenGlasses Firmware
 
-This repository contains the firmware for the OpenGlass project, a wearable device based on the ESP32. The firmware provides BLE (Bluetooth Low Energy) services for streaming audio and photos.
+This repository contains the PlatformIO-based firmware for the OpenGlasses project, a wearable device built on the Seeed Studio XIAO ESP32-S3. The firmware provides a rich set of features including BLE command and control, photo capture, and live audio/video streaming over Wi-Fi.
+
+The architecture is modular and state-driven, ensuring robust handling of different operational modes.
 
 ## Features
 
-- **BLE Services:**
-  - Photo streaming (single-shot and interval-based)
-  - Real-time audio streaming using μ-law (G.711) codec.
-- **Power Management:**
-  - Automatic deep sleep and light sleep modes to conserve battery.
-  - Dynamic CPU frequency scaling.
-- **Task Management:**
-  - FreeRTOS tasks for handling photo and audio streaming, ensuring smooth operation.
-- **LED Status Indicator:**
-  - Onboard LED provides visual feedback for connection status, streaming activity, and power modes.
+-   **State-Driven Architecture:** A central state handler manages the device's mode, from idle and sleeping to active streaming.
+-   **BLE Command and Control:** Uses NimBLE for efficient Bluetooth Low Energy communication to receive commands and send notifications.
+-   **Photo Capture:** On-demand photo capture (JPEG) triggered via BLE, with the image transferred over the BLE connection.
+-   **Wi-Fi Hotspot:** Can create its own Wi-Fi network for direct connection without needing an external router.
+-   **Live A/V Streaming:**
+    -   **Video:** Streams a live MJPEG video feed over HTTP.
+    -   **Audio:** Streams live, raw 16-bit audio over a WebSocket.
+-   **Power Management:** Utilizes ESP32's sleep modes to conserve battery when idle.
+-   **LED Status Indicator:** Provides visual feedback for different states like idle, connecting, and streaming.
 
-## BLE Protocol
+## Communication Protocols
 
-The firmware uses a custom BLE service for its core functionalities.
+### 1. BLE Protocol
 
-- **Service UUID:** `19B10000-E8F2-537E-4F6C-D104768A1214`
+The firmware uses custom BLE services for commands and data transfer.
 
-### Photo Streaming
+-   **Command Service:** `d27157e8-318c-4320-b359-5b8a625c727a`
+    -   **Command Characteristic:** `ab473a0a-4531-4963-87a9-05e7b315a8e5` (Write)
+        -   Accepts single-byte commands to control the device's functions.
+        -   `0x01`: Take Photo
+        -   `0x10`: Start Audio Stream (BLE)
+        -   `0x11`: Stop Audio Stream (BLE)
+        -   `0x20`: Start Wi-Fi Hotspot & A/V Streams
+        -   `0x21`: Stop Wi-Fi Hotspot
 
-- **Photo Data Characteristic:** `19B10005-E8F2-537E-4F6C-D104768A1214` (Notify)
-  - Streams photo data in chunks.
-  - Each chunk is prefixed with a 2-byte frame number (little-endian).
-  - The end of a photo is marked by a special frame number `0xFFFF`.
-- **Photo Control Characteristic:** `19B10006-E8F2-537E-4F6C-D104768A1214` (Write)
-  - `-1` (or `0xFF`): Request a single photo.
-  - `0`: Stop any ongoing interval capture.
-  - `5-127`: Set the interval for photo capture in seconds.
+-   **Photo Service:**
+    -   Transfers JPEG data to a connected client.
 
-### Audio Streaming
+### 2. Wi-Fi Protocol
 
-- **Audio Data Characteristic:** `19B10001-E8F2-537E-4F6C-D104768A1214` (Notify)
-  - Streams audio data encoded with μ-law (G.711).
-  - Sample rate: 8kHz.
+When activated, the device creates a Wi-Fi hotspot with the following credentials:
+-   **SSID:** `OpenGlasses`
+-   **Password:** `openglasses`
 
-## Client Implementation
+Once connected, clients can access the following endpoints on `http://192.168.4.1`:
 
-Python client scripts are provided in the `client/` directory to demonstrate how to interact with the device's BLE services.
-
--   **`ble_photo_client.py`**: A client to request and receive a single photo. It saves the image as a timestamped JPEG file and prints transfer statistics.
--   **`ble_audio_client.py`**: A client to record 20 seconds of audio. It saves the stream as a timestamped WAV file and prints session statistics.
-
-### Dependencies
-
-The only external dependency for the clients is the `bleak` library, which can be installed via pip:
-
-```bash
-pip3 install bleak
-```
-
-### Usage
-
-First, ensure your OpenGlass device is powered on and advertising.
-
-**To test photo capture:**
-
-```bash
-python3 client/ble_photo_client.py
-```
-
-The script will connect, request a photo, and save it in the `client/` directory.
-
-**To test audio recording:**
-
-```bash
-python3 client/ble_audio_client.py
-```
-
-The script will connect, record 20 seconds of audio, and save it as a WAV file in the `client/` directory.
+-   **Video Stream:** `http://192.168.4.1/stream`
+    -   An HTTP endpoint that serves a `multipart/x-mixed-replace` stream containing JPEG frames (MJPEG).
+-   **Audio Stream:** `ws://192.168.4.1/audio`
+    -   A WebSocket endpoint that streams raw PCM audio data (16000 Hz, 16-bit, mono).
 
 ## Building the Firmware
 
-This project is built using the Arduino framework for the ESP32.
+This project is built using **PlatformIO**.
 
 ### Dependencies
 
-- ESP32 Arduino Core
+All required libraries are listed in the `platformio.ini` file and will be downloaded automatically by PlatformIO.
+-   `nimble-cpp` (for BLE)
+-   `ESPAsyncWebServer` & `AsyncTCP` (for Wi-Fi server)
 
-### Setup
+### Build & Upload
 
-1.  Open the `OpenGlassesFirmware.ino` file in the Arduino IDE.
-2.  Select the correct ESP32 board from the Tools menu.
-3.  Install the required libraries.
-4.  Compile and upload the firmware to your device.
+1.  [Install PlatformIO IDE for VSCode](https://platformio.org/install/ide?install=vscode).
+2.  Open the `OpenGlassesFirmware` folder in VSCode.
+3.  To build the project, use the PlatformIO "Build" task.
+4.  To upload the firmware to the device, use the PlatformIO "Upload" task.
+
+## Client Applications
+
+Python clients for interacting with the firmware are located in the `client/` directory. These scripts allow you to send commands, view the live video stream, and save photos.
+
+For detailed instructions on setting up and using the clients, please see the **[Client README](./client/README.md)**.
+
 

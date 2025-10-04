@@ -1,0 +1,5 @@
+opencv-python
+websockets
+pyaudio
+numpy
+bleak
