@@ -19,5 +19,6 @@ bool take_photo();
 void release_photo_buffer();
 void deinit_camera();
 bool is_camera_initialized();
+void warm_up_camera();
 
 #endif // CAMERA_HANDLER_H

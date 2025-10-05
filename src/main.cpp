@@ -42,6 +42,8 @@ void setup()
     initialize_state_machine();
     initialize_led();
     initialize_camera_mutex_and_task();
+    configure_camera(); // Explicitly configure camera before warmup
+    warm_up_camera();   // Warm up the camera sensor
     initialize_photo_handler();
     configure_ble();
     initialize_battery_handler(g_battery_level_characteristic);

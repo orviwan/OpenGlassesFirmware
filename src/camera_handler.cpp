@@ -211,3 +211,22 @@ bool is_camera_initialized() {
     }
     return status;
 }
+
+void warm_up_camera() {
+    if (xSemaphoreTake(g_camera_mutex, portMAX_DELAY)) {
+        log_message("[CAM] Warming up camera...");
+        // Capture and discard a few frames to allow sensor to stabilize
+        for (int i = 0; i < 3; ++i) {
+            camera_fb_t *warmup_fb = esp_camera_fb_get();
+            if (warmup_fb) {
+                log_message("[CAM] Discarding warmup frame %d.", i + 1);
+                esp_camera_fb_return(warmup_fb);
+            } else {
+                log_message("[CAM] WARNING: Failed to get a warmup frame.");
+            }
+            vTaskDelay(pdMS_TO_TICKS(100)); // Small delay between captures
+        }
+        log_message("[CAM] Camera warmup complete.");
+        xSemaphoreGive(g_camera_mutex);
+    }
+}
