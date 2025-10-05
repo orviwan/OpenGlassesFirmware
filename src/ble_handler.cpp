@@ -78,25 +78,12 @@ class PhotoControlCallback : public NimBLECharacteristicCallbacks {
             }
 
             uint8_t command = value[0];
-            photo_mode_t mode;
-            switch (command) {
-                case 0x01: // High Quality
-                    logger_printf("[BLE] Photo request: HIGH_QUALITY\n");
-                    mode = PHOTO_MODE_HIGH_QUALITY;
-                    break;
-                case 0x02: // Medium Quality
-                    logger_printf("[BLE] Photo request: MEDIUM_QUALITY\n");
-                    mode = PHOTO_MODE_MEDIUM_QUALITY;
-                    break;
-                case 0x03: // Fast Transfer
-                    logger_printf("[BLE] Photo request: FAST_TRANSFER\n");
-                    mode = PHOTO_MODE_FAST_TRANSFER;
-                    break;
-                default:
-                    logger_printf("[BLE] Unknown photo command: 0x%02X\n", command);
-                    return;
+            if (command == 0x01) { // Single photo request command
+                logger_printf("[BLE] Photo request received.\n");
+                start_photo_transfer_task();
+            } else {
+                logger_printf("[BLE] Unknown photo command: 0x%02X\n", command);
             }
-            start_photo_transfer_task(mode);
         }
     }
 };

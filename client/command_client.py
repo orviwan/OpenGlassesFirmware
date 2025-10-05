@@ -25,9 +25,7 @@ client_ble = None # Global client for ACK handler
 
 # --- Command Mapping ---
 COMMANDS = [
-    {"name": "take high quality photo", "hex": "0x01", "handler": "photo"},
-    {"name": "take medium quality photo", "hex": "0x02", "handler": "photo"},
-    {"name": "take fast photo", "hex": "0x03", "handler": "photo"},
+    {"name": "take photo", "hex": "0x01", "handler": "photo"},
     {"name": "start interval photo", "hex": "0x04", "handler": "command"},
     {"name": "stop interval photo", "hex": "0x05", "handler": "command"},
     {"name": "start audio", "hex": "0x10", "handler": "command"},

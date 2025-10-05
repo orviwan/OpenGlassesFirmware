@@ -12,9 +12,6 @@ static TaskHandle_t g_photo_sender_task_handle = NULL;
 static TaskHandle_t g_interval_photo_task_handle = NULL;
 static uint32_t g_photo_interval_ms = 0;
 
-// Global variable to hold the mode for the photo sender task
-static photo_mode_t g_current_photo_mode;
-
 SemaphoreHandle_t g_photo_request_semaphore = NULL;
 
 void initialize_photo_handler() {
@@ -47,10 +44,7 @@ void initialize_photo_handler() {
     logger_printf("[PHOTO] Photo sender task created.");
 }
 
-void start_photo_transfer_task(photo_mode_t mode) {
-    // Store the requested mode for the persistent task
-    g_current_photo_mode = mode;
-
+void start_photo_transfer_task() {
     // Check if the handler is initialized
     if (g_photo_sender_task_handle == NULL || g_photo_request_semaphore == NULL) {
         logger_printf("[PHOTO] ERROR: Photo handler not initialized before request!");
@@ -69,20 +63,19 @@ void photo_sender_task(void *pvParameters) {
         if (xSemaphoreTake(g_photo_request_semaphore, portMAX_DELAY) == pdTRUE) {
             logger_printf("[PHOTO] Received photo request, starting process.");
             set_current_state(STATE_TAKING_PHOTO);
-            
-            // Request a photo with the stored mode
-            request_photo(g_current_photo_mode);
 
-            // Wait for the photo to be ready
-            unsigned long start_time = millis();
-            while (!is_photo_ready()) {
-                if (millis() - start_time > 5000) { // 5-second timeout
-                    logger_printf("[PHOTO] ERROR: Timeout waiting for photo from camera task.");
-                    release_photo_buffer(); // Clean up just in case
-                    set_current_state(STATE_IDLE);
-                    continue; // Go back to waiting for a new request
-                }
-                delay(50);
+            // Clear any pending photo-ready signal before making a new request
+            xSemaphoreTake(g_photo_ready_semaphore, 0);
+            
+            // Request a photo
+            request_photo();
+
+            // Wait for the photo to be ready from the camera task
+            if (xSemaphoreTake(g_photo_ready_semaphore, pdMS_TO_TICKS(5000)) != pdTRUE) {
+                logger_printf("[PHOTO] ERROR: Timeout waiting for photo from camera task.");
+                release_photo_buffer(); // Clean up just in case
+                set_current_state(STATE_IDLE);
+                continue; // Go back to waiting for a new request
             }
 
             // 3. Get the framebuffer
@@ -127,10 +120,12 @@ void photo_sender_task(void *pvParameters) {
                 // Send the complete chunk (header + payload)
                 notify_photo_data(chunk_buffer, payload_size + PHOTO_CHUNK_HEADER_LEN);
 
-        bytes_sent += payload_size;
-        sequence_number++;
-        delay(50); // Delay to prevent overwhelming the client
-    }            // 5. Send the end-of-transfer marker
+                bytes_sent += payload_size;
+                sequence_number++;
+                delay(50); // Delay to prevent overwhelming the client
+            }
+
+            // 5. Send the end-of-transfer marker
             uint16_t end_marker = 0xFFFF;
             notify_photo_data((uint8_t*)&end_marker, sizeof(end_marker));
             delay(100); // Give BLE stack time to send the final packet
