@@ -4,6 +4,6 @@
 #include <stdint.h>
 #include <string>
 
-void handle_device_command(const std::string& value);
+void handle_command_control(const std::string& value);
 
 #endif // COMMAND_HANDLER_H

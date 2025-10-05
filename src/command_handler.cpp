@@ -5,7 +5,7 @@
 #include "logger.h"
 #include "state_handler.h"
 
-void handle_device_command(const std::string& value) {
+void handle_command_control(const std::string& value) {
     if (value.length() == 0) {
         logger_printf("[CMD] Error: Received empty command.\n");
         return;
@@ -15,10 +15,6 @@ void handle_device_command(const std::string& value) {
     logger_printf("[CMD] Received Command ID: 0x%02X\n", command_id);
 
     switch (command_id) {
-        case 0x01: // Take Photo
-            logger_printf("[CMD] Command: Take Photo received\n");
-            take_and_send_photo();
-            break;
         case 0x02: // Start Interval Photo
             logger_printf("[CMD] Command: Start Interval Photo received\n");
             if (value.length() > 1) {

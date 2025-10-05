@@ -9,6 +9,7 @@
 #include "led_handler.h"
 #include "logger.h"
 #include "camera_handler.h"
+#include "photo_handler.h"
 #include "audio_streamer.h"
 
 // Helper to print pretty uptime (hh:mm:ss)
@@ -40,6 +41,8 @@ void setup()
 
     initialize_state_machine();
     initialize_led();
+    initialize_camera_mutex_and_task();
+    initialize_photo_handler();
     configure_ble();
     initialize_battery_handler(g_battery_level_characteristic);
 

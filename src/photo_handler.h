@@ -3,7 +3,9 @@
 
 #include <cstdint>
 
-void take_and_send_photo();
+void initialize_photo_handler();
+void start_photo_transfer_task();
+void photo_sender_task(void *pvParameters);
 void start_interval_photo(uint32_t interval_ms);
 void stop_interval_photo();
 

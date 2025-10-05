@@ -13,34 +13,43 @@ This directory contains Python scripts to interact with the OpenGlasses firmware
 2.  Install the necessary Python libraries using the `requirements.txt` file:
 
     ```sh
-    pip install -r requirements.txt
+    python3 -m venv venv
+    source venv/bin/activate
+    pip3 install -r requirements.txt
     ```
 
 ## Available Clients
 
-### 1. Interactive Command Client
+### 1. Interactive Command Client (`command_client.py`)
 
-This is the recommended client for sending commands to the glasses. It provides a user-friendly interactive prompt.
+This is the primary, all-in-one client for interacting with the glasses. It provides a user-friendly interactive prompt for sending all commands, including taking photos.
 
 **Usage:**
+
+Make sure your OpenGlasses device is powered on and advertising.
 
 ```sh
 python command_client.py
 ```
 
-The script will automatically find and connect to the "OpenGlasses" device. Once connected, you can type commands and press Enter.
+The script will automatically find and connect to the "OpenGlass" device. On the first connection, you may be prompted by your operating system to pair with the device; please accept the request.
+
+Once connected, you can type commands (or their corresponding number) and press Enter.
 
 **Commands:**
 
--   `take photo`: Triggers the camera to take a picture.
--   `start audio`: Starts streaming audio over BLE (for use with `ble_audio_client.py` in streaming mode).
+-   `take photo`: Triggers the camera, transfers the image over BLE, and saves it locally as `photo_YYYYMMDD_HHMMSS.jpg`.
+-   `start interval photo`: (Not yet implemented)
+-   `stop interval photo`: (Not yet implemented)
+-   `start audio`: Starts streaming audio over BLE.
 -   `stop audio`: Stops streaming audio over BLE.
 -   `start wifi`: Activates the Wi-Fi hotspot and A/V streaming endpoints.
 -   `stop wifi`: Deactivates the Wi-Fi hotspot.
+-   `reboot`: Reboots the device.
 -   `help`: Shows the list of available commands.
 -   `exit`: Disconnects from the device and closes the client.
 
-### 2. Wi-Fi A/V Stream Client
+### 2. Wi-Fi A/V Stream Client (`wifi_stream_client.py`)
 
 This client connects to the glasses' Wi-Fi hotspot to display the live video and play the live audio.
 
@@ -56,28 +65,7 @@ This client connects to the glasses' Wi-Fi hotspot to display the live video and
 
 A window will open showing the live video feed, and audio will play through your computer's speakers. Press 'q' in the video window to quit.
 
-### 3. BLE Photo Client
+### 3. Legacy Clients
 
-This client connects to the glasses and waits to receive a photo over BLE.
+The `ble_photo_client.py` and `ble_audio_client.py` are now considered legacy. Their functionality has been merged into the main `command_client.py`. They are kept for reference but are no longer needed for standard operation.
 
-**Usage:**
-
-1.  Run the photo client:
-
-    ```sh
-    python ble_photo_client.py
-    ```
-
-2.  While the client is running, use the `command_client.py` to send the `take photo` command.
-3.  The photo will be transferred and saved as `received_photo.jpg` in the `client` directory.
-
-### 4. BLE Audio Client (Legacy)
-
-This client can be used to stream audio over BLE or to send a single command. The interactive `command_client.py` is recommended for sending commands.
-
-**Usage (to send a single command):**
-
-```sh
-# Example: Send the 'start wifi' command (0x20)
-python ble_audio_client.py --command 0x20
-```

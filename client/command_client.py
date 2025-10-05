@@ -1,84 +1,188 @@
 import asyncio
-import argparse
 from bleak import BleakClient, BleakScanner
 import sys
+from datetime import datetime
+import logging
 
 # --- Configuration ---
-# UUIDs must match the firmware
-COMMAND_SERVICE_UUID = "d27157e8-318c-4320-b359-5b8a625c727a"
-COMMAND_CHAR_UUID = "ab473a0a-4531-4963-87a9-05e7b315a8e5"
+DEVICE_NAME = "OpenGlass"
+COMMAND_SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214"
+COMMAND_CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214"
+PHOTO_CONTROL_UUID = "19b10006-e8f2-537e-4f6c-d104768a1214"
+PHOTO_DATA_UUID = "19b10005-e8f2-537e-4f6c-d104768a1214"
+
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# --- Global State for Photo Transfer ---
+photo_data = bytearray()
+transfer_complete = asyncio.Event()
+last_sequence_number = -1
 
 # --- Command Mapping ---
-COMMANDS = {
-    "take photo": "0x01",
-    "start audio": "0x10",
-    "stop audio": "0x11",
-    "start wifi": "0x20",
-    "stop wifi": "0x21",
-}
+COMMANDS = [
+    {"name": "take photo", "hex": "0xFF", "handler": "photo"}, # Special command
+    {"name": "start interval photo", "hex": "0x02", "handler": "command"},
+    {"name": "stop interval photo", "hex": "0x03", "handler": "command"},
+    {"name": "start audio", "hex": "0x10", "handler": "command"},
+    {"name": "stop audio", "hex": "0x11", "handler": "command"},
+    {"name": "start wifi", "hex": "0x20", "handler": "command"},
+    {"name": "stop wifi", "hex": "0x21", "handler": "command"},
+    {"name": "reboot", "hex": "0xFE", "handler": "command"},
+]
 
 def print_commands():
     """Prints the available commands."""
     print("\nAvailable commands:")
-    for cmd in COMMANDS:
-        print(f"  - {cmd}")
-    print("  - help (to see this list again)")
-    print("  - exit (to quit)")
+    for i, cmd_info in enumerate(COMMANDS):
+        print(f"  {i+1}: {cmd_info['name']}")
+    print("  - h (to see this list again)")
+    print("  - q (to quit)")
     print()
+
+def photo_notification_handler(sender, data: bytearray):
+    """Handles incoming data from the photo data characteristic."""
+    global photo_data, last_sequence_number
+
+    if len(data) == 2 and data == b'\xff\xff':
+        logger.info("End-of-transfer marker received.")
+        transfer_complete.set()
+        return
+
+    if len(data) < 2:
+        logger.warning(f"Received a runt packet of size {len(data)}. Ignoring.")
+        return
+
+    sequence_number = int.from_bytes(data[:2], 'little')
+    payload = data[2:]
+
+    if last_sequence_number != -1 and sequence_number != last_sequence_number + 1:
+        logger.warning(f"Missed a packet! Expected sequence {last_sequence_number + 1}, but got {sequence_number}.")
+
+    last_sequence_number = sequence_number
+    photo_data.extend(payload)
+    logger.debug(f"Received chunk {sequence_number}, total size: {len(photo_data)}")
+
+async def handle_photo_command(client: BleakClient):
+    """Handles the entire photo taking and receiving process."""
+    global photo_data, transfer_complete, last_sequence_number
+    photo_data.clear()
+    transfer_complete.clear()
+    last_sequence_number = -1
+
+    logger.info(f"Subscribing to photo data notifications on {PHOTO_DATA_UUID}...")
+    await client.start_notify(PHOTO_DATA_UUID, photo_notification_handler)
+    logger.info("Subscription successful.")
+
+    await asyncio.sleep(1)
+
+    logger.info(f"Sending 'take photo' command (0xFF) to {PHOTO_CONTROL_UUID}...")
+    await client.write_gatt_char(PHOTO_CONTROL_UUID, b'\xff', response=True)
+    logger.info("Command sent.")
+
+    try:
+        logger.info("Waiting for photo data transfer to complete...")
+        await asyncio.wait_for(transfer_complete.wait(), timeout=30.0)
+        logger.info("Photo transfer complete.")
+    except asyncio.TimeoutError:
+        logger.error("Timeout occurred while waiting for photo data.")
+    finally:
+        try:
+            await client.stop_notify(PHOTO_DATA_UUID)
+        except Exception as e:
+            logger.warning(f"An error occurred while unsubscribing: {e}")
+
+    if photo_data:
+        filename = f"photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        with open(filename, "wb") as f:
+            f.write(photo_data)
+        logger.info(f"Photo saved as {filename} ({len(photo_data)} bytes)")
+    else:
+        logger.warning("No photo data was received.")
+
+async def handle_generic_command(client: BleakClient, cmd_info: dict):
+    """Handles sending a standard command."""
+    hex_cmd = cmd_info['hex']
+    cmd_name = cmd_info['name']
+    byte_cmd = int(hex_cmd, 16).to_bytes(1, 'little')
+    
+    logger.info(f"Sending command: '{cmd_name}' ({hex_cmd})")
+    await client.write_gatt_char(COMMAND_CHAR_UUID, byte_cmd, response=True)
+    logger.info("Command sent successfully.")
 
 async def main():
     """Main function to connect and send commands."""
-    print("Scanning for OpenGlasses device...")
-    device = await BleakScanner.find_device_by_name("OpenGlasses")
+    logger.info("Scanning for OpenGlass device...")
+    device = await BleakScanner.find_device_by_name(DEVICE_NAME)
     if not device:
-        print("Error: Could not find a device named 'OpenGlasses'.")
+        logger.error(f"Error: Could not find a device named '{DEVICE_NAME}'.")
         return
 
-    print(f"Found OpenGlasses: {device.address}")
+    logger.info(f"Found OpenGlass: {device.address}")
 
-    async with BleakClient(device) as client:
+    async with BleakClient(device, timeout=20.0) as client:
         if not client.is_connected:
-            print("Error: Failed to connect to the device.")
+            logger.error("Error: Failed to connect to the device.")
             return
         
-        print("Successfully connected to OpenGlasses.")
+        logger.info(f"Successfully connected to OpenGlasses. Negotiated MTU: {client.mtu_size} bytes.")
+        
+        logger.info("Attempting to pair...")
+        try:
+            paired = await client.pair()
+            if paired:
+                logger.info("Pairing successful.")
+            else:
+                logger.warning("Pairing not successful. May already be paired.")
+        except Exception as e:
+            logger.warning(f"Pairing error: {e}. Continuing...")
+
         print_commands()
 
         while True:
             try:
                 user_input = await asyncio.to_thread(sys.stdin.readline)
-                cmd_text = user_input.strip().lower()
+                cmd_input = user_input.strip().lower()
 
-                if not cmd_text:
+                if not cmd_input:
                     continue
-
-                if cmd_text == "exit":
-                    print("Disconnecting...")
+                if cmd_input in ("exit", "q"):
                     break
-                
-                if cmd_text == "help":
+                if cmd_input in ("help", "h"):
                     print_commands()
                     continue
 
-                if cmd_text in COMMANDS:
-                    hex_cmd = COMMANDS[cmd_text]
-                    byte_cmd = int(hex_cmd, 16).to_bytes(1, 'little')
-                    
-                    print(f"Sending command: '{cmd_text}' ({hex_cmd})")
-                    await client.write_gatt_char(COMMAND_CHAR_UUID, byte_cmd)
-                    print("Command sent successfully.")
+                cmd_to_run = None
+                if cmd_input.isdigit() and 1 <= int(cmd_input) <= len(COMMANDS):
+                    cmd_to_run = COMMANDS[int(cmd_input) - 1]
                 else:
-                    print(f"Unknown command: '{cmd_text}'. Type 'help' for a list of commands.")
+                    for cmd_info in COMMANDS:
+                        if cmd_info['name'] == cmd_input:
+                            cmd_to_run = cmd_info
+                            break
+                
+                if cmd_to_run:
+                    if cmd_to_run["handler"] == "photo":
+                        await handle_photo_command(client)
+                    else:
+                        await handle_generic_command(client, cmd_to_run)
+                else:
+                    logger.warning(f"Unknown command: '{cmd_input}'. Type 'help' for a list of commands.")
+
+                print_commands()
 
             except KeyboardInterrupt:
-                print("\nDisconnecting...")
                 break
             except Exception as e:
-                print(f"An error occurred: {e}")
+                logger.error(f"An error occurred: {e}")
                 break
+    
+    logger.info("Disconnected.")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\nClient stopped.")
+

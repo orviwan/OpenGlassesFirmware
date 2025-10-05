@@ -1,168 +1,118 @@
 import asyncio
-import datetime
-import time
+import logging
 from bleak import BleakClient, BleakScanner
-from bleak.backends.characteristic import BleakGATTCharacteristic
+from datetime import datetime
+
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-# UUIDs should match the ones in your firmware's config.h
 DEVICE_NAME = "OpenGlass"
-SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214"
-PHOTO_DATA_UUID = "19b10005-e8f2-537e-4f6c-d104768a1214"
 PHOTO_CONTROL_UUID = "19b10006-e8f2-537e-4f6c-d104768a1214"
+PHOTO_DATA_UUID = "19b10005-e8f2-537e-4f6c-d104768a1214"
 
-# Global state
-photo_buffer = bytearray()
-is_receiving = False
-received_frames = set()
-last_frame_number = -1
-download_start_time = 0
-stats = {}
+# --- Global State ---
+photo_data = bytearray()
+transfer_complete = asyncio.Event()
+last_sequence_number = -1
 
-def notification_handler(characteristic: BleakGATTCharacteristic, data: bytearray):
+def notification_handler(sender, data: bytearray):
     """Handles incoming data from the photo data characteristic."""
-    global photo_buffer, is_receiving, received_frames, last_frame_number, download_start_time, stats
+    global photo_data, last_sequence_number
 
-    if not is_receiving:
+    # Check for the end-of-transfer marker (0xFFFF)
+    if len(data) == 2 and data == b'\xff\xff':
+        logger.info("End-of-transfer marker received.")
+        transfer_complete.set()
         return
 
-    header = data[:2]
+    if len(data) < 2:
+        logger.warning(f"Received a runt packet of size {len(data)}. Ignoring.")
+        return
+
+    # Extract sequence number (little-endian) and payload
+    sequence_number = int.from_bytes(data[:2], 'little')
     payload = data[2:]
-    frame_number = int.from_bytes(header, 'little')
 
-    # End-of-Photo marker (0xFFFF)
-    if frame_number == 0xFFFF:
-        print("\n[CLIENT] End-of-photo marker received.")
-        is_receiving = False  # Stop processing further packets
+    if last_sequence_number != -1 and sequence_number != last_sequence_number + 1:
+        logger.warning(f"Missed a packet! Expected sequence {last_sequence_number + 1}, but got {sequence_number}.")
 
-        # --- Calculate download stats ---
-        download_end_time = time.monotonic()
-        duration = download_end_time - download_start_time
-        size_bytes = len(photo_buffer)
-        stats['download_duration_s'] = duration
-        stats['file_size_bytes'] = size_bytes
-        if duration > 0:
-            stats['transfer_speed_kbps'] = (size_bytes / 1024) / duration
-        else:
-            stats['transfer_speed_kbps'] = 0
-
-        # Validate the received JPEG data by checking for SOI and EOI markers.
-        if len(photo_buffer) > 4 and photo_buffer.startswith(b'\xff\xd8') and photo_buffer.endswith(b'\xff\xd9'):
-            print("[CLIENT] JPEG validation successful (SOI and EOI markers found).")
-            try:
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"received_photo_{timestamp}.jpg"
-                with open(filename, "wb") as f:
-                    f.write(photo_buffer)
-                print(f"\n[SUCCESS] Photo saved as {filename} ({len(photo_buffer)} bytes)")
-            except IOError as e:
-                print(f"[ERROR] Failed to save photo: {e}")
-        else:
-            print("\n[ERROR] JPEG validation FAILED. The received data is not a valid image.")
-            print(f"  [DEBUG] Total bytes received: {len(photo_buffer)}")
-            if len(photo_buffer) > 4:
-                print(f"  [DEBUG] Start bytes: {photo_buffer[:2].hex()}")
-                print(f"  [DEBUG] End bytes:   {photo_buffer[-2:].hex()}")
-        return
-
-    # Regular photo data frame
-    if frame_number in received_frames:
-        print(f"\n[WARNING] Duplicate frame received: {frame_number}. Discarding.")
-        return
-
-    if frame_number != last_frame_number + 1 and last_frame_number != -1:
-        print(f"\n[FATAL] PACKET LOSS DETECTED! Expected frame {last_frame_number + 1}, but got {frame_number}.")
-
-    photo_buffer.extend(payload)
-    received_frames.add(frame_number)
-    last_frame_number = frame_number
-    print(f"\r[CLIENT] Receiving chunk {frame_number}... ({len(photo_buffer)} bytes total)", end="")
+    last_sequence_number = sequence_number
+    photo_data.extend(payload)
+    logger.debug(f"Received chunk {sequence_number}, payload size: {len(payload)}, total size: {len(photo_data)}")
 
 async def main():
-    """Main function to scan, connect, and receive the photo."""
-    global is_receiving, photo_buffer, received_frames, last_frame_number, download_start_time, stats
-
-    print(f"Scanning for '{DEVICE_NAME}'...")
-    scan_start_time = time.monotonic()
+    """Main function to connect, take a photo, and save it."""
+    logger.info(f"Scanning for '{DEVICE_NAME}'...")
     device = await BleakScanner.find_device_by_name(DEVICE_NAME)
-    scan_end_time = time.monotonic()
-
     if not device:
-        print(f"Could not find device with name '{DEVICE_NAME}'. Please check if it's advertising.")
+        logger.error(f"Could not find device with name '{DEVICE_NAME}'. Please check if it's advertising.")
         return
-
-    print(f"Found device: {device.name} ({device.address})")
-    stats['scan_time_s'] = scan_end_time - scan_start_time
-
-    connect_start_time = time.monotonic()
-    async with BleakClient(device) as client:
-        connect_end_time = time.monotonic()
-        stats['connect_time_s'] = connect_end_time - connect_start_time
-
+    
+    logger.info(f"Found device: {device.name} ({device.address})")
+    
+    async with BleakClient(device, timeout=20.0) as client:
         if not client.is_connected:
-            print(f"Failed to connect to {device.address}")
+            logger.error(f"Failed to connect to {DEVICE_NAME}.")
             return
 
-        print(f"Connected to {client.address}")
+        logger.info(f"Connected to {DEVICE_NAME}")
 
-        # Negotiate a larger MTU for faster transfers.
+        # Attempt to pair with the device
+        logger.info("Attempting to pair with the device...")
         try:
-            new_mtu = await client.exchange_mtu(247)
-            print(f"[CLIENT] MTU successfully negotiated to: {new_mtu} bytes")
+            paired = await client.pair()
+            if paired:
+                logger.info("Pairing successful.")
+            else:
+                logger.warning("Pairing was not successful. The device may already be paired or does not require pairing.")
         except Exception as e:
-            print(f"[CLIENT] MTU negotiation failed: {e}. Using default.")
+            logger.warning(f"An error occurred during pairing: {e}. This may be expected on some OSes. Continuing...")
 
-        # Add a delay for service discovery to complete
-        await asyncio.sleep(1.0)
+        # Subscribe to the data characteristic
+        logger.info(f"Subscribing to photo data notifications on {PHOTO_DATA_UUID}...")
+        await client.start_notify(PHOTO_DATA_UUID, notification_handler)
+        logger.info("Subscription successful.")
 
-        # Reset state for this run
-        photo_buffer.clear()
-        received_frames.clear()
-        last_frame_number = -1
-        is_receiving = False
+        # Give the subscription a moment to settle
+        await asyncio.sleep(1)
 
+        # Send the command to start the photo transfer
+        logger.info(f"Sending 'take photo' command (0xFF) to {PHOTO_CONTROL_UUID}...")
+        await client.write_gatt_char(PHOTO_CONTROL_UUID, b'\xff', response=True)
+        logger.info("Command sent.")
+
+        # Wait for the transfer to complete (with a timeout)
         try:
-            # 1. Enable notifications
-            print(f"Enabling notifications for Photo Data ({PHOTO_DATA_UUID})...")
-            await client.start_notify(PHOTO_DATA_UUID, notification_handler)
-            print("[CLIENT] Notifications enabled.")
-
-            # 2. Request single photo
-            print(f"Requesting single photo via Photo Control ({PHOTO_CONTROL_UUID})...")
-            is_receiving = True  # Set flag to start processing notifications
-            download_start_time = time.monotonic()
-            await client.write_gatt_char(PHOTO_CONTROL_UUID, b'\xff', response=True)  # -1 signed byte
-            print("[CLIENT] Photo request sent. Waiting for data...")
-
-            # 3. Wait for the transfer to complete
-            while is_receiving:
-                await asyncio.sleep(0.1)
-            
-            await asyncio.sleep(1.0) 
-
-        except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.info("Waiting for photo data transfer to complete...")
+            await asyncio.wait_for(transfer_complete.wait(), timeout=30.0)
+            logger.info("Photo transfer complete.")
+        except asyncio.TimeoutError:
+            logger.error("Timeout occurred while waiting for photo data.")
+            return
         finally:
-            print("Stopping notifications and disconnecting...")
+            # Always unsubscribe, but handle potential errors on cleanup
             try:
+                logger.info("Unsubscribing from notifications...")
                 await client.stop_notify(PHOTO_DATA_UUID)
+                logger.info("Unsubscribed successfully.")
             except Exception as e:
-                print(f"Error stopping notifications: {e}")  # Can happen if already disconnected
-            print("Disconnected.")
+                logger.warning(f"An error occurred while unsubscribing: {e}. This can sometimes be ignored.")
 
-            # --- Print final stats ---
-            print("\n--- Transfer Statistics ---")
-            print(f"  Scan time:      {stats.get('scan_time_s', 0):.2f} s")
-            print(f"  Connect time:   {stats.get('connect_time_s', 0):.2f} s")
-            print(f"  Download time:  {stats.get('download_duration_s', 0):.2f} s")
-            print(f"  File size:      {stats.get('file_size_bytes', 0) / 1024:.2f} KB")
-            print(f"  Transfer speed: {stats.get('transfer_speed_kbps', 0):.2f} KB/s")
-            print("---------------------------\n")
+        # Save the received data to a file
+        if photo_data:
+            filename = f"photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            with open(filename, "wb") as f:
+                f.write(photo_data)
+            logger.info(f"Photo saved as {filename} ({len(photo_data)} bytes)")
+        else:
+            logger.warning("No photo data was received.")
 
+    logger.info("Disconnected.")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Script stopped by user.")
-
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")

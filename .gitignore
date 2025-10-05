@@ -2,6 +2,8 @@
 /*.jpg
 /*.wav
 
+client/photo_*
+
 # C/C++ build files
 *.o
 *.d

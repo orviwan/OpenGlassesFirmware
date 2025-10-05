@@ -6,6 +6,8 @@
 // Extern declarations for global BLE variables
 extern BLECharacteristic *g_device_status_characteristic;
 extern BLECharacteristic *g_battery_level_characteristic;
+extern BLECharacteristic *g_photo_data_characteristic;
+extern BLECharacteristic *g_new_photo_data_characteristic; // New characteristic
 extern volatile bool g_is_ble_connected;
 
 void configure_ble();

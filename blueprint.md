@@ -26,18 +26,27 @@ Functionality is encapsulated within distinct, single-responsibility handlers:
 
 ### 1. BLE Protocol
 
-The firmware uses NimBLE for its efficiency and uses custom BLE services for command and data transfer.
+The firmware uses NimBLE for its efficiency and requires a bonded (paired) connection for secure characteristics. It exposes a primary service for all interactions.
 
--   **Command Service:** `d27157e8-318c-4320-b359-5b8a625c727a`
-    -   **Command Characteristic:** `ab473a0a-4531-4963-87a9-05e7b315a8e5` (Write)
-        -   Accepts single-byte commands to change the device's state.
-        -   `0x01`: Take Photo
+-   **Primary Service:** `19b10000-e8f2-537e-4f6c-d104768a1214`
+    -   **Command Characteristic:** `19b10001-e8f2-537e-4f6c-d104768a1214` (Write, Encrypted)
+        -   Accepts single-byte commands for general device control.
+        -   `0x02`: Start Interval Photo
+        -   `0x03`: Stop Interval Photo
         -   `0x10`: Start Audio Stream (over BLE)
         -   `0x11`: Stop Audio Stream (over BLE)
         -   `0x20`: Start Wi-Fi Hotspot & A/V Streams
         -   `0x21`: Stop Wi-Fi Hotspot
+        -   `0xFE`: Reboot Device
 
--   **Photo Service:** A dedicated service for transferring JPEG data to a connected client via notifications.
+    -   **Photo Control Characteristic:** `19b10006-e8f2-537e-4f6c-d104768a1214` (Write, Encrypted)
+        -   A dedicated characteristic for triggering a single photo capture.
+        -   Writing `0xFF` initiates the photo capture and transfer process.
+
+    -   **Photo Data Characteristic:** `19b10005-e8f2-537e-4f6c-d104768a1214` (Notify, Encrypted)
+        -   Transfers the captured JPEG data to the client.
+        -   **Framed Protocol:** Data is sent in chunks. Each chunk is prefixed with a 2-byte little-endian sequence number, starting from 0.
+        -   **End of Transfer:** The transfer is complete when the client receives a final, 2-byte notification containing `0xFFFF`.
 
 ### 2. Wi-Fi Streaming Protocol
 

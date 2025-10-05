@@ -3,9 +3,9 @@
 #include "state_handler.h"
 #include "logger.h"
 #include "command_handler.h"
+#include "photo_handler.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
-// #include <NimBLE2902.h>
 
 
 // Global BLE variables
@@ -13,6 +13,7 @@ BLECharacteristic *g_device_status_characteristic = nullptr;
 BLECharacteristic *g_battery_level_characteristic = nullptr;
 BLECharacteristic *g_audio_data_characteristic = nullptr;
 BLECharacteristic *g_photo_data_characteristic = nullptr;
+BLECharacteristic *g_photo_control_characteristic = nullptr;
 
 volatile bool g_is_ble_connected = false;
 uint32_t g_conn_handle = 0;
@@ -40,7 +41,7 @@ class ServerSecurityCallbacks : public NimBLEServerCallbacks {
         logger_printf("[BLE] Client disconnected.\n");
         set_current_state(STATE_IDLE);
         // Restart advertising to allow new connections
-        NimBLEDevice::startAdvertising();
+        NimBLEDevice::getAdvertising()->start();
     }
 
     void onAuthenticationComplete(ble_gap_conn_desc* desc) {
@@ -54,15 +55,26 @@ class ServerSecurityCallbacks : public NimBLEServerCallbacks {
 };
 
 // --- Characteristic Callbacks ---
-class DeviceControlCallback : public NimBLECharacteristicCallbacks {
+class CommandControlCallback : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* pCharacteristic) {
         std::string value = pCharacteristic->getValue();
-        handle_device_command(value);
+        handle_command_control(value);
+    }
+};
+
+class PhotoControlCallback : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* pCharacteristic) {
+        std::string value = pCharacteristic->getValue();
+        if (!value.empty() && value[0] == 0xFF) {
+            logger_printf("[BLE] Photo request received.");
+            start_photo_transfer_task();
+        }
     }
 };
 
 void configure_ble() {
-    logger_printf("\n[BLE] Initializing...\n");
+    logger_printf("[BLE] Initializing...\n");
+
     NimBLEDevice::init(DEVICE_MODEL_NUMBER);
 
     // Setup security
@@ -75,16 +87,16 @@ void configure_ble() {
     // --- OpenGlass Service ---
     NimBLEService *pService = pServer->createService(SERVICE_UUID);
 
-    // Device Control Characteristic
-    NimBLECharacteristic *pDeviceControlChar = pService->createCharacteristic(
-        DEVICE_CONTROL_UUID,
+    // Command Control Characteristic
+    NimBLECharacteristic *pCommandControlChar = pService->createCharacteristic(
+        COMMAND_CONTROL_UUID,
         NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC
     );
-    pDeviceControlChar->setCallbacks(new DeviceControlCallback());
+    pCommandControlChar->setCallbacks(new CommandControlCallback());
 
     // Device Status Characteristic
     g_device_status_characteristic = pService->createCharacteristic(
-        DEVICE_STATUS_UUID,
+        COMMAND_STATUS_UUID,
         NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC
     );
 
@@ -100,11 +112,19 @@ void configure_ble() {
         NIMBLE_PROPERTY::NOTIFY
     );
 
-    // Photo Data Characteristic
+    // Photo Data Characteristic (for sending image data)
     g_photo_data_characteristic = pService->createCharacteristic(
         PHOTO_DATA_UUID,
-        NIMBLE_PROPERTY::NOTIFY
+        NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC
     );
+
+    // Photo Control Characteristic (for initiating photo capture)
+    g_photo_control_characteristic = pService->createCharacteristic(
+        PHOTO_CONTROL_UUID,
+        NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC
+    );
+    g_photo_control_characteristic->setCallbacks(new PhotoControlCallback());
+
 
     // --- Standard Services ---
     // Device Information Service
@@ -118,8 +138,6 @@ void configure_ble() {
         BATTERY_LEVEL_CHAR_UUID,
         NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
     );
-    // g_battery_level_characteristic->addDescriptor(new NimBLE2902());
-    g_battery_level_characteristic->createDescriptor("2902");
 
     // Start services
     pService->start();
@@ -132,7 +150,7 @@ void configure_ble() {
     pAdvertising->setScanResponse(true);
     pAdvertising->start();
 
-    logger_printf("[BLE] Initialized and advertising started.\n");
+    logger_printf("[BLE] Advertising started with name: %s\n", DEVICE_MODEL_NUMBER);
 }
 
 void update_device_status() {
