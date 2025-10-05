@@ -4,7 +4,7 @@
 #include <NimBLEUUID.h>
 
 // Select camera model (this should ideally be a build flag)
-// #define CAMERA_MODEL_XIAO_ESP32S3
+#define CAMERA_MODEL_XIAO_ESP32S3
 
 // ---------------------------------------------------------------------------------
 // Audio

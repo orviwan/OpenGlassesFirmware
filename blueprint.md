@@ -31,8 +31,6 @@ The firmware uses NimBLE for its efficiency and requires a bonded (paired) conne
 -   **Primary Service:** `19b10000-e8f2-537e-4f6c-d104768a1214`
     -   **Command Characteristic:** `19b10001-e8f2-537e-4f6c-d104768a1214` (Write, Encrypted)
         -   Accepts single-byte commands for general device control.
-        -   `0x02`: Start Interval Photo
-        -   `0x03`: Stop Interval Photo
         -   `0x10`: Start Audio Stream (over BLE)
         -   `0x11`: Stop Audio Stream (over BLE)
         -   `0x20`: Start Wi-Fi Hotspot & A/V Streams
@@ -40,10 +38,8 @@ The firmware uses NimBLE for its efficiency and requires a bonded (paired) conne
         -   `0xFE`: Reboot Device
 
     -   **Photo Control Characteristic:** `19b10006-e8f2-537e-4f6c-d104768a1214` (Write, Encrypted)
-        -   A dedicated characteristic for triggering a single photo capture with different quality settings.
-        -   `0x01`: Take High Quality Photo (Max resolution, low compression).
-        -   `0x02`: Take Medium Quality Photo (XGA resolution, medium compression).
-        -   `0x03`: Take Fast Transfer Photo (XGA resolution, high compression).
+        -   A dedicated characteristic for triggering a single photo capture.
+        -   `0x01`: Take Photo (UXGA resolution, medium compression).
 
     -   **Photo Data Characteristic:** `19b10005-e8f2-537e-4f6c-d104768a1214` (Notify, Encrypted)
         -   Transfers the captured JPEG data to the client.

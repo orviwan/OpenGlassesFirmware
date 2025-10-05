@@ -25,11 +25,13 @@ The firmware uses custom BLE services for commands and data transfer.
 -   **Command Service:** `d27157e8-318c-4320-b359-5b8a625c727a`
     -   **Command Characteristic:** `ab473a0a-4531-4963-87a9-05e7b315a8e5` (Write)
         -   Accepts single-byte commands to control the device's functions.
-        -   `0x01`: Take Photo
         -   `0x10`: Start Audio Stream (BLE)
         -   `0x11`: Stop Audio Stream (BLE)
         -   `0x20`: Start Wi-Fi Hotspot & A/V Streams
         -   `0x21`: Stop Wi-Fi Hotspot
+
+    -   **Photo Control Characteristic:** (Write)
+        -   `0x01`: Take Photo
 
 -   **Photo Service:**
     -   Transfers JPEG data to a connected client.
