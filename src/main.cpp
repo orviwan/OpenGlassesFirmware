@@ -39,7 +39,7 @@ void setup()
 
     logger_printf("[SETUP] System starting...\n");
 
-    initialize_state_machine();
+    initialize_state_handler();
     initialize_led();
     initialize_camera_mutex_and_task();
     configure_camera(); // Explicitly configure camera before warmup

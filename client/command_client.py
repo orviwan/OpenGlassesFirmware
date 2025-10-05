@@ -3,6 +3,7 @@ from bleak import BleakClient, BleakScanner
 import sys
 from datetime import datetime
 import logging
+from tqdm import tqdm
 
 # --- Configuration ---
 DEVICE_NAME = "OpenGlass"
@@ -19,12 +20,16 @@ logger = logging.getLogger(__name__)
 photo_data = bytearray()
 transfer_complete = asyncio.Event()
 last_sequence_number = -1
+pbar = None # Progress bar
+client_ble = None # Global client for ACK handler
 
 # --- Command Mapping ---
 COMMANDS = [
-    {"name": "take photo", "hex": "0xFF", "handler": "photo"}, # Special command
-    {"name": "start interval photo", "hex": "0x02", "handler": "command"},
-    {"name": "stop interval photo", "hex": "0x03", "handler": "command"},
+    {"name": "take high quality photo", "hex": "0x01", "handler": "photo"},
+    {"name": "take medium quality photo", "hex": "0x02", "handler": "photo"},
+    {"name": "take fast photo", "hex": "0x03", "handler": "photo"},
+    {"name": "start interval photo", "hex": "0x04", "handler": "command"},
+    {"name": "stop interval photo", "hex": "0x05", "handler": "command"},
     {"name": "start audio", "hex": "0x10", "handler": "command"},
     {"name": "stop audio", "hex": "0x11", "handler": "command"},
     {"name": "start wifi", "hex": "0x20", "handler": "command"},
@@ -43,17 +48,31 @@ def print_commands():
 
 def photo_notification_handler(sender, data: bytearray):
     """Handles incoming data from the photo data characteristic."""
-    global photo_data, last_sequence_number
+    global photo_data, last_sequence_number, pbar
 
+    # End-of-transfer marker
     if len(data) == 2 and data == b'\xff\xff':
-        logger.info("End-of-transfer marker received.")
+        logger.debug("End-of-transfer marker received.")
+        if pbar:
+            # Make sure the bar shows 100% on completion
+            pbar.n = pbar.total
+            pbar.refresh()
+            pbar.close()
         transfer_complete.set()
+        return
+
+    # Start-of-transfer marker with file size
+    if len(data) == 6 and data[:2] == b'\xfe\xff':
+        photo_data.clear() # Clear previous photo data
+        total_size = int.from_bytes(data[2:], 'little')
+        logger.debug(f"Start-of-transfer marker received. Total size: {total_size} bytes.")
+        pbar = tqdm(total=total_size, unit='B', unit_scale=True, desc="Receiving Photo")
         return
 
     if len(data) < 2:
         logger.warning(f"Received a runt packet of size {len(data)}. Ignoring.")
         return
-
+    
     sequence_number = int.from_bytes(data[:2], 'little')
     payload = data[2:]
 
@@ -62,36 +81,55 @@ def photo_notification_handler(sender, data: bytearray):
 
     last_sequence_number = sequence_number
     photo_data.extend(payload)
+    if pbar:
+        pbar.update(len(payload))
     logger.debug(f"Received chunk {sequence_number}, total size: {len(photo_data)}")
 
-async def handle_photo_command(client: BleakClient):
+async def handle_photo_command(client: BleakClient, cmd_info: dict):
     """Handles the entire photo taking and receiving process."""
-    global photo_data, transfer_complete, last_sequence_number
+    global photo_data, transfer_complete, last_sequence_number, pbar
+    # Reset state for the new transfer
     photo_data.clear()
     transfer_complete.clear()
     last_sequence_number = -1
+    if pbar:
+        pbar.close()
+    pbar = None
 
+    hex_cmd = cmd_info['hex']
+    cmd_name = cmd_info['name']
+    byte_cmd = int(hex_cmd, 16).to_bytes(1, 'little')
+    
     logger.info(f"Subscribing to photo data notifications on {PHOTO_DATA_UUID}...")
     await client.start_notify(PHOTO_DATA_UUID, photo_notification_handler)
     logger.info("Subscription successful.")
 
     await asyncio.sleep(1)
 
-    logger.info(f"Sending 'take photo' command (0xFF) to {PHOTO_CONTROL_UUID}...")
-    await client.write_gatt_char(PHOTO_CONTROL_UUID, b'\xff', response=True)
+    # Silence the bleak logger during transfer to avoid spam
+    logging.getLogger("bleak").setLevel(logging.WARNING)
+
+    logger.info(f"Sending '{cmd_name}' command ({hex_cmd}) to {PHOTO_CONTROL_UUID}...")
+    await client.write_gatt_char(PHOTO_CONTROL_UUID, byte_cmd, response=True)
     logger.info("Command sent.")
+    await asyncio.sleep(0.1) # Yield to event loop to process initial ACK
 
     try:
         logger.info("Waiting for photo data transfer to complete...")
         await asyncio.wait_for(transfer_complete.wait(), timeout=30.0)
-        logger.info("Photo transfer complete.")
+        # The progress bar handles the "complete" status message
     except asyncio.TimeoutError:
         logger.error("Timeout occurred while waiting for photo data.")
     finally:
+        # Restore the bleak logger's level
+        logging.getLogger("bleak").setLevel(logging.INFO)
         try:
             await client.stop_notify(PHOTO_DATA_UUID)
         except Exception as e:
             logger.warning(f"An error occurred while unsubscribing: {e}")
+        
+        if pbar:
+            pbar.close() # Ensure pbar is closed on error or timeout
 
     if photo_data:
         filename = f"photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
@@ -113,6 +151,7 @@ async def handle_generic_command(client: BleakClient, cmd_info: dict):
 
 async def main():
     """Main function to connect and send commands."""
+    global client_ble
     logger.info("Scanning for OpenGlass device...")
     device = await BleakScanner.find_device_by_name(DEVICE_NAME)
     if not device:
@@ -122,6 +161,7 @@ async def main():
     logger.info(f"Found OpenGlass: {device.address}")
 
     async with BleakClient(device, timeout=20.0) as client:
+        client_ble = client
         if not client.is_connected:
             logger.error("Error: Failed to connect to the device.")
             return
@@ -164,7 +204,7 @@ async def main():
                 
                 if cmd_to_run:
                     if cmd_to_run["handler"] == "photo":
-                        await handle_photo_command(client)
+                        await handle_photo_command(client, cmd_to_run)
                     else:
                         await handle_generic_command(client, cmd_to_run)
                 else:

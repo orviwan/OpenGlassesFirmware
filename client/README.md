@@ -38,7 +38,9 @@ Once connected, you can type commands (or their corresponding number) and press 
 
 **Commands:**
 
--   `take photo`: Triggers the camera, transfers the image over BLE, and saves it locally as `photo_YYYYMMDD_HHMMSS.jpg`.
+-   `take high quality photo`: Triggers a high-resolution photo, transfers it, and saves it locally.
+-   `take medium quality photo`: Triggers a medium-resolution photo for a balance of quality and speed.
+-   `take fast photo`: Triggers a lower-quality photo for the fastest possible transfer.
 -   `start interval photo`: (Not yet implemented)
 -   `stop interval photo`: (Not yet implemented)
 -   `start audio`: Starts streaming audio over BLE.

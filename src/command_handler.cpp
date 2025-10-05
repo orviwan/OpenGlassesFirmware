@@ -15,19 +15,6 @@ void handle_command_control(const std::string& value) {
     logger_printf("[CMD] Received Command ID: 0x%02X\n", command_id);
 
     switch (command_id) {
-        case 0x02: // Start Interval Photo
-            logger_printf("[CMD] Command: Start Interval Photo received\n");
-            if (value.length() > 1) {
-                uint32_t interval_ms = (uint32_t)value[1] * 1000;
-                start_interval_photo(interval_ms);
-            } else {
-                logger_printf("[CMD] Error: Interval not provided for interval photo command.\n");
-            }
-            break;
-        case 0x03: // Stop Interval Photo
-            logger_printf("[CMD] Command: Stop Interval Photo received\n");
-            stop_interval_photo();
-            break;
         case 0x10: // Start Audio Stream
             logger_printf("[CMD] Command: Start Audio Stream received\n");
             start_audio_stream();

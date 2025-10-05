@@ -5,11 +5,12 @@
 #include <esp_camera.h>
 
 // Definition of the global frame buffer pointer
-camera_fb_t *fb = nullptr;
+static camera_fb_t *g_fb = nullptr;
 static bool camera_initialized = false;
 SemaphoreHandle_t g_camera_mutex = nullptr; // Mutex for camera access
 SemaphoreHandle_t g_camera_request_semaphore = nullptr; // Signals the camera task
 volatile bool g_is_photo_ready = false; // Flag indicates a photo is ready in the buffer
+static photo_mode_t g_requested_photo_mode = PHOTO_MODE_MEDIUM_QUALITY; // Global to hold the requested mode
 
 // Forward declaration for the internal, non-locking version
 static void release_photo_buffer_internal();
@@ -19,19 +20,19 @@ void camera_task(void *pvParameters) {
     while (true) {
         // Wait for a signal to take a photo
         if (xSemaphoreTake(g_camera_request_semaphore, portMAX_DELAY) == pdTRUE) {
-            log_message("[CAM_TASK] Received photo request.");
+            logger_printf("[CAM_TASK] Received photo request.");
 
             // Ensure camera is initialized
             if (!is_camera_initialized()) {
                 configure_camera();
             }
 
-            // Take the photo
-            if (take_photo()) {
-                log_message("[CAM_TASK] Photo captured successfully. Setting flag.");
+            // Take the photo using the globally stored mode
+            if (take_photo(g_requested_photo_mode)) {
+                logger_printf("[CAM_TASK] Photo captured successfully. Setting flag.");
                 g_is_photo_ready = true; // Signal that the photo is ready
             } else {
-                log_message("[CAM_TASK] Failed to capture photo.");
+                logger_printf("[CAM_TASK] Failed to capture photo.");
                 g_is_photo_ready = false;
                 deinit_camera();
             }
@@ -42,16 +43,16 @@ void camera_task(void *pvParameters) {
 void initialize_camera_mutex_and_task() {
     g_camera_mutex = xSemaphoreCreateMutex();
     if (g_camera_mutex == nullptr) {
-        log_message("[MUTEX] ERROR: Failed to create camera mutex! Halting.");
+        logger_printf("[MUTEX] ERROR: Failed to create camera mutex! Halting.");
         while(1);
     }
 
     g_camera_request_semaphore = xSemaphoreCreateBinary();
     if (g_camera_request_semaphore == nullptr) {
-        log_message("[MUTEX] ERROR: Failed to create camera semaphore! Halting.");
+        logger_printf("[MUTEX] ERROR: Failed to create camera semaphore! Halting.");
         while(1);
     }
-    log_message("[MUTEX] Camera mutex and semaphore created successfully.");
+    logger_printf("[MUTEX] Camera mutex and semaphore created successfully.");
     start_camera_task();
 }
 
@@ -64,11 +65,12 @@ void start_camera_task() {
         2,                    // Priority of the task
         NULL,                 // Task handle
         1);                   // Core where the task should run
-    log_message("[TASK] Dedicated camera task started.");
+    logger_printf("[TASK] Dedicated camera task started.");
 }
 
-void request_photo() {
-    g_is_photo_ready = false; // Reset the flag
+void request_photo(photo_mode_t mode) {
+    g_is_photo_ready = false; // Reset the flag immediately
+    g_requested_photo_mode = mode;
     xSemaphoreGive(g_camera_request_semaphore); // Signal the camera task to take a photo
 }
 
@@ -78,9 +80,9 @@ bool is_photo_ready() {
 
 camera_fb_t* get_photo_buffer() {
     if (xSemaphoreTake(g_camera_mutex, portMAX_DELAY)) {
-        if (g_is_photo_ready && fb) {
+        if (g_is_photo_ready && g_fb) {
             xSemaphoreGive(g_camera_mutex);
-            return fb;
+            return g_fb;
         }
         xSemaphoreGive(g_camera_mutex);
     }
@@ -90,12 +92,12 @@ camera_fb_t* get_photo_buffer() {
 void configure_camera() {
     if (xSemaphoreTake(g_camera_mutex, portMAX_DELAY)) {
         if (camera_initialized) {
-            log_message("[CAM] Already initialized.");
+            logger_printf("[CAM] Already initialized.");
             xSemaphoreGive(g_camera_mutex);
             return;
         }
 
-        log_message("[CAM] Initializing...");
+        logger_printf("[CAM] Initializing...");
         camera_config_t config;
         config.ledc_channel = LEDC_CHANNEL_0;
         config.ledc_timer = LEDC_TIMER_0;
@@ -117,32 +119,34 @@ void configure_camera() {
         config.pin_reset = RESET_GPIO_NUM;
         config.xclk_freq_hz = 20000000;
 
-        // Camera settings from old, stable code
-        config.frame_size = FRAMESIZE_XGA;         // 1024x768 resolution
+        // CRITICAL FIX: Initialize with the LARGEST possible frame size.
+        // The buffers are allocated based on this initial setting.
+        config.frame_size = FRAMESIZE_UXGA;        // Allocate for High Quality
         config.pixel_format = PIXFORMAT_JPEG;      // Output format JPEG
-        config.jpeg_quality = 20;                  // JPEG quality (0-63, lower means higher quality)
+        config.jpeg_quality = 10;                  // Default to high quality
         config.fb_location = CAMERA_FB_IN_PSRAM;   // Store frame buffer in PSRAM
         config.fb_count = 2;                       // Use 2 frame buffers for stability
         config.grab_mode = CAMERA_GRAB_WHEN_EMPTY; // Use WHEN_EMPTY for more stability
 
         esp_err_t err = esp_camera_init(&config);
         if (err != ESP_OK) {
-            log_message("[CAM] ERROR: Failed to initialize camera! Code: 0x%x", err);
+            logger_printf("[CAM] ERROR: Failed to initialize camera! Code: 0x%x", err);
             camera_initialized = false;
             xSemaphoreGive(g_camera_mutex);
             return;
         }
         camera_initialized = true;
-        log_message("[CAM] Camera initialized successfully.");
+        logger_printf("[CAM] Camera initialized successfully (UXGA buffer).");
 
         sensor_t * s = esp_camera_sensor_get();
         if (s) {
-            s->reset(s);
+            // After init, set the default operating size to a smaller, faster one.
+            // The buffer is already big enough for UXGA if requested later.
             s->set_framesize(s, FRAMESIZE_XGA);
             s->set_pixformat(s, PIXFORMAT_JPEG);
-            log_message("[CAM] Sensor reset, framesize and pixformat set post-init.");
+            logger_printf("[CAM] Sensor configured to default XGA size post-init.");
         } else {
-            log_message("[CAM] WARNING: Could not get sensor handle post-init.");
+            logger_printf("[CAM] WARNING: Could not get sensor handle post-init.");
         }
 
         vTaskDelay(pdMS_TO_TICKS(250));
@@ -150,24 +154,51 @@ void configure_camera() {
     }
 }
 
-bool take_photo() {
+bool take_photo(photo_mode_t mode) {
     bool success = false;
     if (xSemaphoreTake(g_camera_mutex, portMAX_DELAY)) {
         release_photo_buffer_internal();
 
-        for (int i = 0; i < 2; ++i) { // Warm-up frames
-            camera_fb_t *tmp_fb = esp_camera_fb_get();
-            if (tmp_fb) {
-                esp_camera_fb_return(tmp_fb);
-            }
+        sensor_t * s = esp_camera_sensor_get();
+        if (!s) {
+            logger_printf("[CAM] ERROR: Could not get sensor handle!");
+            xSemaphoreGive(g_camera_mutex);
+            return false;
         }
 
-        fb = esp_camera_fb_get();
-        if (!fb) {
-            log_message("[CAM] ERROR: Failed to get frame buffer!");
+        // Configure sensor based on the requested mode
+        switch (mode) {
+            case PHOTO_MODE_HIGH_QUALITY:
+                logger_printf("[CAM] Setting mode: HIGH_QUALITY (UXGA, Q10)");
+                s->set_framesize(s, FRAMESIZE_UXGA); // 1600x1200
+                s->set_quality(s, 10); // 0-63, lower is higher quality
+                break;
+            case PHOTO_MODE_MEDIUM_QUALITY:
+                logger_printf("[CAM] Setting mode: MEDIUM_QUALITY (XGA, Q20)");
+                s->set_framesize(s, FRAMESIZE_XGA); // 1024x768
+                s->set_quality(s, 20);
+                break;
+            case PHOTO_MODE_FAST_TRANSFER:
+                logger_printf("[CAM] Setting mode: FAST_TRANSFER (XGA, Q35)");
+                s->set_framesize(s, FRAMESIZE_XGA); // 1024x768
+                s->set_quality(s, 35);
+                break;
+            default:
+                logger_printf("[CAM] WARNING: Unknown photo mode requested. Defaulting to Medium.");
+                s->set_framesize(s, FRAMESIZE_XGA);
+                s->set_quality(s, 20);
+                break;
+        }
+        
+        // Give the sensor a moment to apply new settings
+        vTaskDelay(pdMS_TO_TICKS(250));
+
+        g_fb = esp_camera_fb_get();
+        if (!g_fb) {
+            logger_printf("[CAM] ERROR: Failed to get frame buffer!");
             success = false;
         } else {
-            log_message("[CAM] Photo captured: %zu bytes.", fb->len);
+            logger_printf("[CAM] Photo captured: %zu bytes.", g_fb->len);
             success = true;
         }
         xSemaphoreGive(g_camera_mutex);
@@ -176,9 +207,9 @@ bool take_photo() {
 }
 
 static void release_photo_buffer_internal() {
-    if (fb) {
-        esp_camera_fb_return(fb);
-        fb = nullptr;
+    if (g_fb) {
+        esp_camera_fb_return(g_fb);
+        g_fb = nullptr;
     }
 }
 
@@ -198,7 +229,7 @@ void deinit_camera() {
         release_photo_buffer_internal();
         esp_camera_deinit();
         camera_initialized = false;
-        log_message("[CAM] Deinitialized successfully.");
+        logger_printf("[CAM] Deinitialized successfully.");
         xSemaphoreGive(g_camera_mutex);
     }
 }
@@ -214,19 +245,19 @@ bool is_camera_initialized() {
 
 void warm_up_camera() {
     if (xSemaphoreTake(g_camera_mutex, portMAX_DELAY)) {
-        log_message("[CAM] Warming up camera...");
+        logger_printf("[CAM] Warming up camera...");
         // Capture and discard a few frames to allow sensor to stabilize
         for (int i = 0; i < 3; ++i) {
             camera_fb_t *warmup_fb = esp_camera_fb_get();
             if (warmup_fb) {
-                log_message("[CAM] Discarding warmup frame %d.", i + 1);
+                logger_printf("[CAM] Discarding warmup frame %d.", i + 1);
                 esp_camera_fb_return(warmup_fb);
             } else {
-                log_message("[CAM] WARNING: Failed to get a warmup frame.");
+                logger_printf("[CAM] WARNING: Failed to get a warmup frame.");
             }
             vTaskDelay(pdMS_TO_TICKS(100)); // Small delay between captures
         }
-        log_message("[CAM] Camera warmup complete.");
+        logger_printf("[CAM] Camera warmup complete.");
         xSemaphoreGive(g_camera_mutex);
     }
 }

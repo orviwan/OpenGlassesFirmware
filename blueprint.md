@@ -40,8 +40,10 @@ The firmware uses NimBLE for its efficiency and requires a bonded (paired) conne
         -   `0xFE`: Reboot Device
 
     -   **Photo Control Characteristic:** `19b10006-e8f2-537e-4f6c-d104768a1214` (Write, Encrypted)
-        -   A dedicated characteristic for triggering a single photo capture.
-        -   Writing `0xFF` initiates the photo capture and transfer process.
+        -   A dedicated characteristic for triggering a single photo capture with different quality settings.
+        -   `0x01`: Take High Quality Photo (Max resolution, low compression).
+        -   `0x02`: Take Medium Quality Photo (XGA resolution, medium compression).
+        -   `0x03`: Take Fast Transfer Photo (XGA resolution, high compression).
 
     -   **Photo Data Characteristic:** `19b10005-e8f2-537e-4f6c-d104768a1214` (Notify, Encrypted)
         -   Transfers the captured JPEG data to the client.

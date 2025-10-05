@@ -42,7 +42,7 @@ void stream_video(void *pvParameters) {
 }
 
 void start_wifi_hotspot() {
-    set_current_state(STATE_WIFI_ACTIVATING);
+    set_current_state(STATE_WIFI_MODE);
     log_message("Starting Wi-Fi hotspot...");
 
     WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);

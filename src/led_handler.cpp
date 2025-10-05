@@ -31,7 +31,7 @@ void handle_led() {
 
         case STATE_STREAMING_AUDIO_BLE:
         case STATE_TAKING_PHOTO:
-        case STATE_SENDING_PHOTO:
+        case STATE_TRANSFERRING_PHOTO_BLE:
         case STATE_STREAMING_AV_WIFI: // Fast blink
             if (current_time - last_blink_time >= 250) {
                 last_blink_time = current_time;
@@ -40,7 +40,7 @@ void handle_led() {
             }
             break;
 
-        case STATE_WIFI_ACTIVATING: // Rapid pulse
+        case STATE_WIFI_MODE: // Rapid pulse
             if (current_time - last_blink_time >= 100) {
                 last_blink_time = current_time;
                 led_state = !led_state;

@@ -3,3 +3,5 @@ websockets
 pyaudio
 numpy
 bleak
+tqdm
+tqdm

@@ -15,6 +15,9 @@ BLECharacteristic *g_audio_data_characteristic = nullptr;
 BLECharacteristic *g_photo_data_characteristic = nullptr;
 BLECharacteristic *g_photo_control_characteristic = nullptr;
 
+// Add this line
+SemaphoreHandle_t g_photo_ack_semaphore = NULL;
+
 volatile bool g_is_ble_connected = false;
 uint32_t g_conn_handle = 0;
 
@@ -65,9 +68,35 @@ class CommandControlCallback : public NimBLECharacteristicCallbacks {
 class PhotoControlCallback : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* pCharacteristic) {
         std::string value = pCharacteristic->getValue();
-        if (!value.empty() && value[0] == 0xFF) {
-            logger_printf("[BLE] Photo request received.");
-            start_photo_transfer_task();
+        if (value.length() > 0) {
+            // Check for ACK (2 bytes)
+            if (value.length() == 2) {
+                if (g_photo_ack_semaphore != NULL) {
+                    xSemaphoreGive(g_photo_ack_semaphore);
+                }
+                return;
+            }
+
+            uint8_t command = value[0];
+            photo_mode_t mode;
+            switch (command) {
+                case 0x01: // High Quality
+                    logger_printf("[BLE] Photo request: HIGH_QUALITY\n");
+                    mode = PHOTO_MODE_HIGH_QUALITY;
+                    break;
+                case 0x02: // Medium Quality
+                    logger_printf("[BLE] Photo request: MEDIUM_QUALITY\n");
+                    mode = PHOTO_MODE_MEDIUM_QUALITY;
+                    break;
+                case 0x03: // Fast Transfer
+                    logger_printf("[BLE] Photo request: FAST_TRANSFER\n");
+                    mode = PHOTO_MODE_FAST_TRANSFER;
+                    break;
+                default:
+                    logger_printf("[BLE] Unknown photo command: 0x%02X\n", command);
+                    return;
+            }
+            start_photo_transfer_task(mode);
         }
     }
 };
