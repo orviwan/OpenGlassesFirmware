@@ -34,6 +34,13 @@ void camera_task(void *pvParameters) {
             
             // Set camera to a single, default high-quality mode
             sensor_t *s = esp_camera_sensor_get();
+            if (!s) {
+                logger_printf("[CAM] ERROR: Could not get sensor in camera_task. Has init failed?");
+                g_fb = nullptr;
+                xSemaphoreGive(g_photo_ready_semaphore); // Signal failure to photo_sender
+                g_camera_task_request_flag = false;
+                continue; // Skip the rest of the loop
+            }
             logger_printf("[CAM] Setting quality: 15");
             s->set_quality(s, 15);
 
@@ -113,6 +120,9 @@ camera_fb_t* get_photo_buffer() {
 }
 
 void configure_camera() {
+    // Add a delay to allow the camera power to stabilize before initialization
+    vTaskDelay(pdMS_TO_TICKS(250));
+
     if (xSemaphoreTake(g_camera_mutex, portMAX_DELAY)) {
         if (camera_initialized) {
             logger_printf("[CAM] Already initialized.");
@@ -154,7 +164,7 @@ void configure_camera() {
             logger_printf("[CAM] ERROR: Failed to initialize camera! Code: 0x%x", err);
             camera_initialized = false;
             xSemaphoreGive(g_camera_mutex);
-            return;
+            while (1) { vTaskDelay(1000); } // Halt on critical error
         }
         camera_initialized = true;
         logger_printf("[CAM] Camera initialized successfully (UXGA buffer).");

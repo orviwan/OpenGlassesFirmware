@@ -1,9 +1,23 @@
 import asyncio
 from bleak import BleakClient, BleakScanner
 import sys
+import tty
+import termios
 from datetime import datetime
 import logging
 from tqdm import tqdm
+
+def get_single_char():
+    """Gets a single character from standard input without requiring Enter."""
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
 
 # --- Configuration ---
 DEVICE_NAME = "OpenGlass"
@@ -180,40 +194,35 @@ async def main():
 
         while True:
             try:
-                user_input = await asyncio.to_thread(sys.stdin.readline)
-                cmd_input = user_input.strip().lower()
+                print("\rWaiting for command... ", end="", flush=True)
+                char_input = await asyncio.to_thread(get_single_char)
+                print(f"'{char_input}'") # Echo the character
 
-                if not cmd_input:
-                    continue
-                if cmd_input in ("exit", "q"):
+                # Exit on 'q' or Ctrl+C (which is '\x03' in raw mode)
+                if char_input.lower() == 'q' or char_input == '\x03':
+                    print("Exiting...")
                     break
-                if cmd_input in ("help", "h"):
+                
+                if char_input.lower() == 'h':
                     print_commands()
                     continue
 
                 cmd_to_run = None
-                if cmd_input.isdigit() and 1 <= int(cmd_input) <= len(COMMANDS):
-                    cmd_to_run = COMMANDS[int(cmd_input) - 1]
-                else:
-                    for cmd_info in COMMANDS:
-                        if cmd_info['name'] == cmd_input:
-                            cmd_to_run = cmd_info
-                            break
+                if char_input.isdigit() and 1 <= int(char_input) <= len(COMMANDS):
+                    cmd_to_run = COMMANDS[int(char_input) - 1]
                 
                 if cmd_to_run:
+                    print(f"Executing: {cmd_to_run['name']}")
                     if cmd_to_run["handler"] == "photo":
                         await handle_photo_command(client, cmd_to_run)
                     else:
                         await handle_generic_command(client, cmd_to_run)
+                    print_commands() # Show commands again after action
                 else:
-                    logger.warning(f"Unknown command: '{cmd_input}'. Type 'help' for a list of commands.")
+                    logger.warning(f"Unknown command key: '{char_input}'. Press 'h' for help.")
 
-                print_commands()
-
-            except KeyboardInterrupt:
-                break
             except Exception as e:
-                logger.error(f"An error occurred: {e}")
+                logger.error(f"An error occurred in the main loop: {e}")
                 break
     
     logger.info("Disconnected.")

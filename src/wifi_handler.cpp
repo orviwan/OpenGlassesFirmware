@@ -4,6 +4,8 @@
 #include "state_handler.h"
 #include "camera_handler.h"
 #include <WiFi.h>
+#include <NimBLEDevice.h>
+#include "ble_handler.h"
 #include <ESPAsyncWebServer.h>
 
 AsyncWebServer server(80);
@@ -45,7 +47,16 @@ void start_wifi_hotspot() {
     set_current_state(STATE_WIFI_MODE);
     log_message("Starting Wi-Fi hotspot...");
 
-    WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
+    // De-initialize BLE to fully free the radio for Wi-Fi
+    log_message("[WIFI] De-initializing BLE stack...");
+    NimBLEDevice::deinit();
+    vTaskDelay(pdMS_TO_TICKS(100)); // Allow time for de-init to complete
+
+    if (!WiFi.softAP(WIFI_SSID, WIFI_PASSWORD)) {
+        log_message("[WIFI] ERROR: Failed to start Soft AP!");
+        set_current_state(STATE_ERROR);
+        return;
+    }
     IPAddress myIP = WiFi.softAPIP();
     log_message("AP IP address: %s", myIP.toString().c_str());
 
@@ -98,5 +109,10 @@ void stop_wifi_hotspot() {
     WiFi.softAPdisconnect(true);
     server.end();
     log_message("Wi-Fi hotspot stopped.");
+
+    // Re-initialize BLE to allow connections again
+    log_message("[WIFI] Re-initializing BLE stack...");
+    configure_ble();
+
     set_current_state(STATE_IDLE);
 }

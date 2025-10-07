@@ -4,7 +4,7 @@
 #include <NimBLEUUID.h>
 
 // Select camera model (this should ideally be a build flag)
-#define CAMERA_MODEL_XIAO_ESP32S3
+// #define CAMERA_MODEL_XIAO_ESP32S3
 
 // ---------------------------------------------------------------------------------
 // Audio
@@ -93,7 +93,7 @@ constexpr unsigned long ULAW_TASK_DELAY_MS = 10;                 // Delay for th
 // Wi-Fi Configuration
 // ---------------------------------------------------------------------------------
 #define WIFI_SSID "OpenGlasses"
-#define WIFI_PASSWORD "12345678"
+#define WIFI_PASSWORD "openglasses"
 
 // Camera warm-up: number of frames to discard after init (for AWB/gain to settle)
 constexpr int CAMERA_WARMUP_FRAMES = 5;
